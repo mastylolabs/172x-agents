@@ -1,0 +1,59 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Build, packaging, and documentation output
+build/
+dist/
+site/
+*.egg-info/
+*.egg
+*.whl
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Environment files, credentials, and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+credentials.json
+secrets.json
+*.token
+*.tokens
+.private/
+
+# Local 172X state
+.172x/
+
+# Temporary files, logs, and generated scratch output
+*.log
+*.tmp
+*.temp
+tmp/
+.tmp/
+scratch/

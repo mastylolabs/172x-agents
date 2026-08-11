@@ -1,0 +1,4 @@
+interface:
+  display_name: "172X"
+  short_description: "Browse and run workflows with specialist agents."
+  default_prompt: "List the installed 172X workflows and specialist agents."

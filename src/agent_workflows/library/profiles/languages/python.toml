@@ -1,0 +1,15 @@
+id = "python"
+status = "supported"
+gate_tools = ["mypy", "ruff", "radon", "pytest"]
+
+[mypy]
+command = ["mypy", "."]
+
+[ruff]
+command = ["ruff", "check", "."]
+
+[radon]
+command = ["radon", "cc", ".", "-s", "-a"]
+
+[pytest]
+command = ["pytest"]

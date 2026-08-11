@@ -1,0 +1,52 @@
+site_name: 172X Agents
+site_description: Open-source, composable AI-agent workflows from idea discovery through review and release.
+site_url: https://agents.172x.ai/
+repo_name: mastylolabs/172x-agents
+repo_url: https://github.com/mastylolabs/172x-agents
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: deep purple
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep purple
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - tables
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Agent catalog: agents.md
+  - Architecture: ARCHITECTURE.md
+  - CLI: CLI.md
+  - Codex integration: CODEX_INTEGRATION.md
+  - Dev-loop validation: DEV_LOOP_VALIDATION.md
+  - Website plan: WEBSITE.md
+
+strict: true

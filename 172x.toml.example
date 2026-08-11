@@ -1,0 +1,23 @@
+# Copy to 172x.toml or create it through: agents install codex python
+# Commit it so every developer and agent uses the same 172X profile.
+
+[host]
+id = "codex"
+
+[language]
+id = "python"
+
+[scm]
+id = "git"
+
+[provider]
+id = "github"
+
+[gate]
+tools = ["mypy", "ruff", "radon", "pytest"]
+
+[change_request]
+kind = "pull_request"
+base_branch = "main"
+merge_method = "squash"
+merge_current_branch = true

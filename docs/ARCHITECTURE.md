@@ -1,0 +1,58 @@
+# Architecture
+
+172X Agents is a Markdown-first library, not an agent runtime. Codex is the coordinator and executor; the Python package only installs canonical content, validates a deliberately small project profile, selects a workflow, performs diagnostics, and provides narrow guarded GitHub helpers for `dev-loop`.
+
+## Canonical content
+
+```text
+src/agent_workflows/library/
+├── agents/*.md
+├── workflows/*.md
+├── codex/SKILL.md
+└── profiles/languages/python.toml
+```
+
+Agent and workflow Markdown is authoritative. The installer copies it into a project-scoped Codex skill and generates native `.codex/agents/172x-*.toml` definitions. Python does not parse arbitrary workflow graphs or execute steps.
+
+Every agent has a scalar frontmatter header and operational sections for mission, inputs, process, deliverables, evidence, handoff, and boundaries. Every workflow describes its purpose, inputs, participants, flow, feedback loops, human gates, completion criteria, and escalation behavior.
+
+## Project profile and capabilities
+
+`172x.toml` is the project-owned contract shared by installer, doctor, gates, and `dev-loop`:
+
+```text
+host → language → scm → provider → gate → change request
+```
+
+The initial supported combination is Codex / Python / Git / GitHub / macOS. Other hosts, languages, providers, Linux, and Windows are listed as **planned** by `agents capabilities`; the loader rejects them rather than creating empty adapters or configuration fields.
+
+Gates are selected tool IDs from the Python profile. Each maps to a safe argument-list command. Python runner detection prefers a repository's `uv`, Poetry, or Hatch convention, so 172X does not invent a packaging command. Repository-specific gate scripts and arbitrary command configuration are deliberately not part of this release.
+
+## `dev-loop`
+
+`dev-loop` is the autonomous change-request workflow:
+
+```text
+Task
+  → Brief
+  → clean-workspace normalization
+  → new branch in the current checkout
+  → Coding
+  → selected engineering gate (repeat until pass)
+  → commit / push / GitHub pull request
+  → independent QA and review
+  → address MF / answer Q / explain any declined NH
+  → independent approval (at most two review returns)
+  → live GitHub gate
+  → normal merge to main
+```
+
+The workflow calls the review unit a *change request* so later providers can translate it. The supported GitHub adapter operates on pull requests. It never receives a pull-request number from the user; it obtains that from its own GitHub action.
+
+The guard verifies a current GitHub approval, clean state, passing GitHub checks, resolved threads, target branch, and checked head commit immediately before merge. Codex never approves its own work. If branch rules require a second eligible GitHub identity, the repository must already provide it; `doctor` reports this as a required check.
+
+There is no hidden run database. Safe recovery comes from visible artifacts: the branch, change request, brief, gate output, and review comments. A new Codex session inspects those artifacts and resumes only from verified state.
+
+## Boundaries
+
+172X does not add a workflow engine, database, scheduler, provider API client, generic host abstraction, plugin marketplace, hosted service, credentials, telemetry, or a background process. The local GitHub gate uses `gh` with argument lists and `shell=False`; it does not use administrator bypass or auto-merge.
