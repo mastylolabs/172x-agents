@@ -11,13 +11,13 @@
 | `market-research` | Produces source-backed market context and alternatives. |
 | `product-specification` | Defines scope, non-goals, and testable acceptance criteria. |
 
-## Experience
+## Design
 
 | Agent | Role |
 | --- | --- |
 | `ux-ui-design` | Defines flows, states, accessibility requirements, and frontend-facing interface needs. |
 
-## Engineering
+## Platform
 
 | Agent | Role |
 | --- | --- |
@@ -27,7 +27,7 @@
 | `frontend-implementation` | Implements accessible frontend behavior against stable UX and backend contracts. |
 | `technical-feasibility` | Assesses constraints, dependencies, risks, and experiments. |
 
-## Quality and Risk
+## Quality
 
 | Agent | Role |
 | --- | --- |
@@ -36,6 +36,11 @@
 | `frontend-review` | Independently reviews frontend behavior, accessibility, and maintainability. |
 | `pr-review` | Synthesizes evidence into a local approval recommendation. |
 | `qa` | Independently verifies acceptance criteria with PASS or FAIL evidence. |
+
+## Security
+
+| Agent | Role |
+| --- | --- |
 | `security-review` | Identifies evidence-backed security risks and mitigations. |
 
 Browse the same catalog in the CLI:
@@ -44,3 +49,5 @@ Browse the same catalog in the CLI:
 agents domains
 agents list
 ```
+
+In an installed Codex project, each agent is also a direct native skill. Open `/skills`, select an entry such as **172X · Brief** or **172X · QA**, and give that specialist the task directly.

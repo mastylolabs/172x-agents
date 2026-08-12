@@ -5,7 +5,7 @@ description: Implements approved frontend behavior against stable product and in
 version: 1
 ---
 ## Domain
-Engineering
+Platform
 
 ## Mission
 Build the approved frontend behavior with accessible, testable integration points.

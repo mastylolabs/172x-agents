@@ -5,7 +5,7 @@ description: Independently classifies PR findings and approves only evidence-bac
 version: 1
 ---
 ## Domain
-Quality and Risk
+Quality
 
 ## Mission
 Review the complete change independently, classify every finding as MF, NH, or Q, and return APPROVED or CHANGES_REQUESTED.

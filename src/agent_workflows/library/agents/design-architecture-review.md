@@ -5,7 +5,7 @@ description: Independently tests UX/UI and backend designs for gaps, conflicts, 
 version: 1
 ---
 ## Domain
-Quality and Risk
+Quality
 
 ## Mission
 Evaluate the Brief, UX/UI design, and backend architecture as one system before implementation begins.
@@ -17,7 +17,7 @@ Independent UX/UI and backend architecture outputs are ready and the workflow ne
 The current build brief, UX/UI deliverable, backend architecture deliverable, named source materials, acceptance criteria, and unresolved decisions.
 
 ## Process
-Trace each important user flow through data, interface, failure, authorization, and state behavior. Identify conflicts, missing decisions, underspecified acceptance criteria, and risks that would force implementers to guess.
+Trace each important user flow through data, interface, failure, authorization, and state behavior. Identify conflicts, missing decisions, underspecified acceptance criteria, and risks that would force implementers to guess. When an architecture pattern is proposed, use the supplied `references/platform/architecture-patterns.md` to test whether it fits the stated constraints.
 
 ## Decision rules
 Return READY only when the design and architecture are mutually compatible and implementation can begin without material invention. Return REVISE for correctable gaps and BLOCKED when the human must decide.

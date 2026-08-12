@@ -5,7 +5,7 @@ description: Reviews the approved change for evidence-backed security risks and 
 version: 1
 ---
 ## Domain
-Quality and Risk
+Security
 
 ## Mission
 Identify material security risks in the proposed change without overstating certainty.

@@ -5,7 +5,7 @@ description: Browse and run 172X workflows with specialist Codex agents for disc
 
 # 172X Agents
 
-Use this skill for an explicit request such as `$172x list`, `$172x run dev`, `$172x use idea-to-product`, or `$172x show workflow dev`.
+Use this catalog skill for an explicit request such as `$172x list`, `$172x run dev`, `$172x use idea-to-product`, or `$172x show workflow dev`. For the fastest native selection, use `/skills` and choose a dedicated `172X · …` workflow or specialist skill instead.
 
 ## Commands
 

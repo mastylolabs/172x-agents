@@ -1,12 +1,20 @@
 # Codex integration
 
-`agents install codex python` installs a project-scoped Codex skill and native custom agents from the canonical Markdown library. It also writes the reviewed, committed `172x.toml` project profile. It does not install Codex, authenticate it, edit `.codex/config.toml`, or write credentials.
+`agents install codex python` installs a project-scoped coordinator skill, direct native skills for every workflow and specialist, and native custom agents from the canonical Markdown library. It also writes the reviewed, committed `172x.toml` project profile. It does not install Codex, authenticate it, edit `.codex/config.toml`, or write credentials.
 
 ```text
 .agents/skills/172x-agents/
 ├── SKILL.md
 ├── agents/openai.yaml
 └── references/{agents,workflows}/*.md
+
+.agents/skills/172x-dev-loop/
+├── SKILL.md
+└── agents/openai.yaml
+
+.agents/skills/172x-brief/
+├── SKILL.md
+└── agents/openai.yaml
 
 .codex/agents/172x-*.toml
 172x.toml
@@ -34,19 +42,11 @@ You can start Codex directly in an installed project:
 codex --dangerously-bypass-approvals-and-sandbox
 ```
 
-Open `/skills` and select **172X**. Then use the catalog front door:
+Open `/skills` and select a direct entry such as **172X · Dev Loop** or **172X · Brief**. Codex owns that scroll-and-Return picker; selecting a workflow activates it for the current task, while selecting a specialist applies that specialist directly without starting a workflow.
 
-```text
-$172x list
-```
+The optional **172X · Catalog** skill remains available for text browsing with `$172x list`.
 
-It lists the installed workflows and specialist agents. Agents are native Codex subagents, not separate user-facing skills, so Codex does not render them as a nested `/skills` tree. Start a workflow with:
-
-```text
-$172x run dev-loop
-```
-
-The skill reads the selected workflow and its named agent references. It delegates bounded work to the appropriate native `172x-<role>` subagent and preserves the handoff contracts in the Markdown source.
+Each direct workflow skill reads the coordinator skill and selected workflow reference, then delegates bounded work to the appropriate native `172x-<role>` subagent. Each direct specialist skill reads and applies its own canonical agent reference without starting a workflow.
 
 `dev-loop` uses `172x.toml` before it starts. It must honor the selected gate tool IDs and packaging convention, provider-neutral workflow language, GitHub pull-request implementation, and current branch policy. It gets its own pull-request number after creating the change request; it never requests one from the user.
 

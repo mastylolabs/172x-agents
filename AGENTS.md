@@ -23,6 +23,7 @@ If documents disagree, use the narrowest v0.1 interpretation and report the conf
 - an optional product command group for the separate public `172x` CLI;
 - project-scoped Codex installation and a committed project profile;
 - a repository-scoped Codex workflow skill;
+- native Codex skills for direct workflow and specialist selection;
 - native Codex custom-agent definitions;
 - four bundled workflows: `dev`, `dev-loop`, `idea-to-product`, and `idea-to-build`.
 
@@ -166,6 +167,7 @@ Use argument-list subprocess calls with `shell=False`. Never interpolate user in
 The installer writes only documented managed paths:
 
 - `.agents/skills/172x-agents/**`
+- `.agents/skills/172x-*/**`
 - `.codex/agents/172x-*.toml`
 - `172x.toml`
 - `.172x/active-workflow` when a workflow is selected
@@ -229,7 +231,7 @@ Do not create mock workflow hosts or simulated agent runtimes.
 
 - Describe only behavior implemented in the repository.
 - Do not represent `/workflow` as a native Codex command.
-- Use `$172x-agents run <workflow>` for an existing Codex session.
+- Use a native `172X · …` skill from `/skills` for direct workflow or specialist selection. The optional catalog skill accepts `$172x run <workflow>`.
 - Clearly separate local review recommendations, GitHub command acceptance, merge-queue state, and an actual confirmed merge.
 - Keep install instructions short.
 - Preserve the distinction between the 172X product name, repository name, Python distribution name, and import package.

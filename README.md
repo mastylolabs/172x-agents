@@ -21,7 +21,7 @@ Start with instructions. Add machinery only after real usage proves that instruc
 That means the first release uses:
 
 - Markdown as the canonical source for agents and workflows;
-- a repository-scoped Codex skill as the workflow coordinator;
+- native Codex skills for direct workflow and specialist selection, plus a repository-scoped coordinator skill;
 - native Codex custom agents and subagents;
 - a small Python CLI for installation, discovery, workflow selection, and launching Codex;
 - a plain-text active-workflow file when the CLI needs to pass a selection to a new session.
@@ -239,6 +239,16 @@ In the target project:
       references/
         agents/*.md
         workflows/*.md
+        platform/architecture-patterns.md
+    172x-dev/
+      SKILL.md
+      agents/openai.yaml
+    172x-brief/
+      SKILL.md
+      agents/openai.yaml
+    172x-<other-agent-or-workflow>/
+      SKILL.md
+      agents/openai.yaml
 
 .codex/
   agents/

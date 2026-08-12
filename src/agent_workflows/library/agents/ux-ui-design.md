@@ -5,7 +5,7 @@ description: Designs user flows and interface requirements that satisfy the appr
 version: 1
 ---
 ## Domain
-Experience
+Design
 
 ## Mission
 Create clear user-facing flows and interface requirements for the approved scope.

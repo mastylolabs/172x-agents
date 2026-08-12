@@ -5,7 +5,7 @@ description: Evaluates technical constraints, risks, and bounded experiments for
 version: 1
 ---
 ## Domain
-Engineering
+Platform
 
 ## Mission
 Assess whether the requested outcome is feasible within stated constraints.

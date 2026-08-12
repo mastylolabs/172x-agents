@@ -8,11 +8,14 @@
 src/agent_workflows/library/
 ├── agents/*.md
 ├── workflows/*.md
+├── references/platform/*.md
 ├── codex/SKILL.md
 └── profiles/languages/python.toml
 ```
 
-Agent and workflow Markdown is authoritative. The installer copies it into a project-scoped Codex skill and generates native `.codex/agents/172x-*.toml` definitions. Python does not parse arbitrary workflow graphs or execute steps.
+Agent and workflow Markdown is authoritative. The installer copies it into a project-scoped coordinator skill, generates one direct native skill for each agent and workflow, and generates native `.codex/agents/172x-*.toml` definitions for workflow delegation. Python does not parse arbitrary workflow graphs or execute steps.
+
+The direct skill catalog uses only domains with shipped roles: Product, Design, Platform, Quality, and Security. Shared references are concise decision aids—not a hidden second prompt library. For example, Backend Architecture and Design & Architecture Review consult the architecture-patterns reference only when a pattern choice is material.
 
 Every agent has a scalar frontmatter header and operational sections for mission, inputs, process, deliverables, evidence, handoff, and boundaries. Every workflow describes its purpose, inputs, participants, flow, feedback loops, human gates, completion criteria, and escalation behavior.
 

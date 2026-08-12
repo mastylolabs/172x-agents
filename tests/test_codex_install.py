@@ -33,6 +33,15 @@ def test_install_generates_parseable_toml_and_is_idempotent(tmp_path: Path) -> N
         assert set(parsed) == {"name", "description", "developer_instructions"}
         assert parsed["developer_instructions"].startswith("## Domain\n")
         assert "\\n" not in path.read_text(encoding="utf-8")
+    skill_paths = sorted((tmp_path / ".agents/skills").glob("172x-*/SKILL.md"))
+    direct_skills = [path for path in skill_paths if path.parent.name != "172x-agents"]
+    workflow_skills = [path for path in direct_skills if path.parent.name in {"172x-dev", "172x-dev-loop", "172x-idea-to-build", "172x-idea-to-product"}]
+    assert len(direct_skills) == 20
+    assert len(workflow_skills) == 4
+    assert (tmp_path / ".agents/skills/172x-brief/agents/openai.yaml").read_text(encoding="utf-8").startswith("interface:\n")
+    assert "references/agents/brief.md" in (tmp_path / ".agents/skills/172x-brief/SKILL.md").read_text(encoding="utf-8")
+    assert "Run the `dev-loop` workflow" in (tmp_path / ".agents/skills/172x-dev-loop/SKILL.md").read_text(encoding="utf-8")
+    assert (tmp_path / ".agents/skills/172x-agents/references/platform/architecture-patterns.md").is_file()
 
 
 def test_dry_run_does_not_write(tmp_path: Path) -> None:

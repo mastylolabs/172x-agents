@@ -5,7 +5,7 @@ description: Implements approved backend behavior against stable interfaces with
 version: 1
 ---
 ## Domain
-Engineering
+Platform
 
 ## Mission
 Build the approved backend behavior while preserving agreed interface contracts.

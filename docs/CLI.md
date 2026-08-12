@@ -68,7 +68,7 @@ agents show WORKFLOW_ID
 agents --workflow WORKFLOW_ID [--target PATH] [--no-launch]
 ```
 
-`list`, `domains`, `workflows`, and `show` read canonical Markdown. Selecting a workflow validates the committed profile and current Codex installation, writes `.172x/active-workflow`, and optionally launches the local `codex` executable with `$172x run <workflow>`. It never installs or authenticates Codex.
+`list`, `domains`, `workflows`, and `show` read canonical Markdown. Selecting a workflow validates the committed profile and current Codex installation, writes `.172x/active-workflow`, and optionally launches the local `codex` executable with the matching direct native skill. It never installs or authenticates Codex.
 
 ### Codex CLI options
 
@@ -99,6 +99,7 @@ The first command is read-only. The last two use the selected GitHub profile and
 
 ```text
 .agents/skills/172x-agents/**
+.agents/skills/172x-*/**
 .codex/agents/172x-*.toml
 .172x/active-workflow
 172x.toml

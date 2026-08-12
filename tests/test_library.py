@@ -21,21 +21,21 @@ def test_bundled_library_validates() -> None:
 def test_domains_are_markdown_defined_and_cover_each_agent_once() -> None:
     grouped = domains()
 
-    assert list(grouped) == ["Product", "Experience", "Engineering", "Quality and Risk"]
+    assert list(grouped) == ["Product", "Design", "Platform", "Quality", "Security"]
     assert [agent.id for agent in grouped["Product"]] == [
         "brief",
         "discovery",
         "market-research",
         "product-specification",
     ]
-    assert [agent.id for agent in grouped["Quality and Risk"]] == [
+    assert [agent.id for agent in grouped["Quality"]] == [
         "backend-review",
         "design-architecture-review",
         "frontend-review",
         "pr-review",
         "qa",
-        "security-review",
     ]
+    assert [agent.id for agent in grouped["Security"]] == ["security-review"]
 
 
 def test_dev_loop_defines_the_full_autonomous_handoff_contract() -> None:

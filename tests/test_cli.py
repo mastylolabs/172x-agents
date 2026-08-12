@@ -54,7 +54,7 @@ def test_selection_without_launch_writes_expected_state(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert (tmp_path / ".172x/active-workflow").read_text(encoding="utf-8") == "dev\n"
-    assert "$172x run dev" in result.output
+    assert "172X · Dev" in result.output
 
 
 def test_launch_uses_selected_workflow(monkeypatch, tmp_path: Path) -> None:
@@ -133,7 +133,7 @@ def test_missing_codex_keeps_selection_and_explains_next_step(monkeypatch, tmp_p
 
     assert result.exit_code == 1
     assert (tmp_path / ".172x/active-workflow").read_text(encoding="utf-8") == "dev\n"
-    assert "$172x run dev" in result.output
+    assert "172X · Dev" in result.output
 
 
 def test_agents_app_mounts_beneath_the_172x_product_name() -> None:
@@ -170,7 +170,8 @@ def test_domains_are_available() -> None:
     domains = runner.invoke(app, ["domains"])
 
     assert domains.exit_code == 0
-    assert "Quality and Risk" in domains.output
+    assert "Quality" in domains.output
+    assert "Security" in domains.output
 
 
 def test_guarded_github_commands_are_exposed_without_running_a_real_merge(

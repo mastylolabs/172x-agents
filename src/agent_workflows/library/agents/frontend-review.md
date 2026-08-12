@@ -5,7 +5,7 @@ description: Independently reviews frontend changes for behavior, accessibility,
 version: 1
 ---
 ## Domain
-Quality and Risk
+Quality
 
 ## Mission
 Assess frontend work independently against requirements and current repository patterns.

@@ -18,6 +18,7 @@ from .codex import (
     integration_current,
     launch_codex,
     select_workflow,
+    workflow_skill_title,
 )
 from .github import merge_gate, merge_pull_request, resolve_review_thread, review_threads
 from .library import LibraryError, domains, find_item, load_library, validate_library
@@ -225,14 +226,14 @@ def agents(
         if ctx.args:
             raise typer.BadParameter("Codex options cannot be combined with --no-launch")
         typer.echo(f"Active workflow: {workflow}")
-        typer.echo(f"In Codex, run: $172x run {workflow}")
+        typer.echo(f"In Codex, select 172X · {workflow_skill_title(workflow)} from /skills.")
         return
     try:
         launch_codex(_target(target), workflow, tuple(ctx.args))
     except FileNotFoundError as error:
         typer.echo(str(error), err=True)
         typer.echo(f"Active workflow: {workflow}")
-        typer.echo(f"In Codex, run: $172x run {workflow}")
+        typer.echo(f"In Codex, select 172X · {workflow_skill_title(workflow)} from /skills.")
         raise typer.Exit(1) from error
 
 

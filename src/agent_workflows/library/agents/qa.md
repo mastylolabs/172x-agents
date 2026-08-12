@@ -5,7 +5,7 @@ description: Verifies requested behavior independently and returns evidence-back
 version: 1
 ---
 ## Domain
-Quality and Risk
+Quality
 
 ## Mission
 Independently verify the requested acceptance criteria and return PASS or FAIL.

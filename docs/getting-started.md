@@ -64,7 +64,9 @@ The reviewer labels findings `MF` (Must Fix), `NH` (Nice to Have), or `Q` (clari
 
 ## Existing Codex session
 
-In an already-open Codex session, invoke the installed skill directly:
+In an already-open Codex session, open `/skills` and select a direct 172X entry such as **172X · Dev Loop** or **172X · Brief**. The native picker scrolls and activates the selected workflow or specialist for the current task.
+
+The optional catalog skill remains available for text browsing:
 
 ```text
 $172x run dev-loop

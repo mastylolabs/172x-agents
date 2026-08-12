@@ -5,7 +5,7 @@ description: Defines compatible backend boundaries, data contracts, and technica
 version: 1
 ---
 ## Domain
-Engineering
+Platform
 
 ## Mission
 Specify the smallest backend design that supports the approved product behavior.
@@ -17,7 +17,7 @@ Backend responsibilities, interfaces, data handling, or risks need definition be
 The product specification, repository context, non-functional constraints, and UX interface needs.
 
 ## Process
-Inspect existing architecture, define bounded interfaces and failure behavior, and identify migration or security risks.
+Inspect existing architecture, define bounded interfaces and failure behavior, and identify migration or security risks. When a material architecture pattern is in question, consult the supplied `references/platform/architecture-patterns.md` before recommending one.
 
 ## Decision rules
 Prefer existing system conventions and the smallest viable change. Escalate incompatible UX requirements, irreversible data decisions, and unbounded operational risk.

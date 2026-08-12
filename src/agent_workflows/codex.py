@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 from importlib import resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Literal
 
@@ -30,6 +31,66 @@ def codex_toml(agent: LibraryItem) -> bytes:
     ).encode()
 
 
+def _skill_metadata(display_name: str, description: str, default_prompt: str) -> bytes:
+    return (
+        "interface:\n"
+        f"  display_name: {json.dumps(display_name)}\n"
+        f"  short_description: {json.dumps(description)}\n"
+        f"  default_prompt: {json.dumps(default_prompt)}\n"
+    ).encode()
+
+
+def _agent_skill(agent: LibraryItem) -> bytes:
+    """Render one direct-use native Codex skill backed by canonical agent Markdown."""
+    skill_name = f"172x-{agent.id}"
+    title = agent.name.removesuffix(" Agent")
+    return (
+        f"---\nname: {skill_name}\ndescription: {json.dumps(f'172X {title}: {agent.description}')}\n---\n\n"
+        f"# 172X · {title}\n\n"
+        "You are using this 172X specialist directly, not running a workflow. Before responding, read "
+        f"`.agents/skills/172x-agents/references/agents/{agent.id}.md` completely and apply its "
+        "instructions to the user's current request. Deliver that specialist's observable result and "
+        "honor its evidence, handoff, and boundary rules. Do not claim that another agent, a provider, "
+        "or a human completed an action unless it actually occurred.\n"
+    ).encode()
+
+
+def workflow_skill_title(workflow_id: str) -> str:
+    """Return the short display label for one direct native workflow skill."""
+    return {
+        "dev": "Dev",
+        "dev-loop": "Dev Loop",
+        "idea-to-build": "Idea to Build",
+        "idea-to-product": "Idea to Product",
+    }[workflow_id]
+
+
+def _workflow_skill(workflow: LibraryItem) -> bytes:
+    """Render a one-click native Codex workflow skill that uses the shared coordinator."""
+    title = workflow_skill_title(workflow.id)
+    skill_name = f"172x-{workflow.id}"
+    return (
+        f"---\nname: {skill_name}\ndescription: {json.dumps(f'172X {title}: {workflow.description}')}\n---\n\n"
+        f"# 172X · {title}\n\n"
+        f"Run the `{workflow.id}` workflow for the user's current task. Before any delegation, read "
+        "`.agents/skills/172x-agents/SKILL.md` and then read "
+        f"`.agents/skills/172x-agents/references/workflows/{workflow.id}.md` completely. Apply the "
+        "coordinator rules and execute this selected workflow immediately; do not ask the user to "
+        "choose a workflow again. If the task or idea is missing, ask for it before delegation.\n"
+    ).encode()
+
+
+def _copy_resource_tree(resource: Traversable, destination: Path) -> dict[Path, bytes]:
+    """Copy bundled Markdown references without adding a general resource framework."""
+    files: dict[Path, bytes] = {}
+    for source in resource.iterdir():
+        if source.is_dir():
+            files.update(_copy_resource_tree(source, destination / source.name))
+        elif source.is_file():
+            files[destination / source.name] = source.read_bytes()
+    return files
+
+
 def managed_files() -> dict[Path, bytes]:
     """Return every owned installation path and its expected bytes."""
     files: dict[Path, bytes] = {
@@ -44,8 +105,26 @@ def managed_files() -> dict[Path, bytes]:
                 files[Path(".agents/skills/172x-agents/references") / kind / source.name] = (
                     source.read_bytes()
                 )
+    reference_root = resources.files("agent_workflows").joinpath("library", "references")
+    files.update(_copy_resource_tree(reference_root, Path(".agents/skills/172x-agents/references")))
     for agent in load_library("agents"):
         files[Path(".codex/agents") / f"172x-{agent.id}.toml"] = codex_toml(agent)
+        skill_root = Path(".agents/skills") / f"172x-{agent.id}"
+        files[skill_root / "SKILL.md"] = _agent_skill(agent)
+        files[skill_root / "agents/openai.yaml"] = _skill_metadata(
+            f"172X · {agent.name.removesuffix(' Agent')}",
+            agent.description,
+            f"Use the 172X {agent.name.removesuffix(' Agent')} specialist for this task.",
+        )
+    for workflow in load_library("workflows"):
+        skill_root = Path(".agents/skills") / f"172x-{workflow.id}"
+        title = workflow_skill_title(workflow.id)
+        files[skill_root / "SKILL.md"] = _workflow_skill(workflow)
+        files[skill_root / "agents/openai.yaml"] = _skill_metadata(
+            f"172X · {title}",
+            workflow.description,
+            f"Run the 172X {title} workflow for the current task.",
+        )
     return dict(sorted(files.items(), key=lambda item: item[0].as_posix()))
 
 
@@ -198,7 +277,5 @@ def launch_codex(target: Path, workflow_id: str, codex_options: tuple[str, ...] 
     """Launch Codex with a validated workflow prompt and user-supplied CLI options."""
     if shutil.which("codex") is None:
         raise FileNotFoundError("The 'codex' executable was not found on PATH.")
-    prompt = (
-        f"$172x run {workflow_id}. Ask me for the task or idea if it is not already clear."
-    )
+    prompt = f"$172x-{workflow_id}. Ask me for the task or idea if it is not already clear."
     subprocess.run(["codex", *codex_options, prompt], cwd=target, shell=False, check=False)

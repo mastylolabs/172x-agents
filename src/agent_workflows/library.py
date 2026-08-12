@@ -59,7 +59,7 @@ _WORKFLOW_SECTIONS = (
     "Completion criteria",
     "Failure and escalation",
 )
-_DOMAINS = ("Product", "Experience", "Engineering", "Quality and Risk")
+_DOMAINS = ("Product", "Design", "Platform", "Quality", "Security")
 
 
 def parse_markdown(source: TextFile | Path) -> LibraryItem:

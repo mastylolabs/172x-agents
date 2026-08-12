@@ -5,7 +5,7 @@ description: Independently reviews backend changes for contract, reliability, an
 version: 1
 ---
 ## Domain
-Quality and Risk
+Quality
 
 ## Mission
 Assess backend work independently against requirements, contracts, and repository patterns.

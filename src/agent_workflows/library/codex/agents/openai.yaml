@@ -1,4 +1,4 @@
 interface:
-  display_name: "172X"
-  short_description: "Browse and run workflows with specialist agents."
+  display_name: "172X · Catalog"
+  short_description: "Browse installed 172X workflows and specialists."
   default_prompt: "List the installed 172X workflows and specialist agents."
