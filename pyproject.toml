@@ -29,7 +29,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-agent_workflows = ["library/**/*.md", "library/**/*.toml", "library/**/*.yaml"]
+agent_workflows = ["library/**/*.md", "library/**/*.mmd", "library/**/*.toml", "library/**/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

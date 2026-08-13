@@ -87,7 +87,9 @@ def _project_directory(target: Path) -> Path:
 
 def _run_gh(target: Path, arguments: list[str]) -> str:
     if shutil.which("gh") is None:
-        raise LibraryError("GitHub CLI is not installed or not on PATH; install gh and authenticate it.")
+        raise LibraryError(
+            "GitHub CLI is not installed or not on PATH; install gh and authenticate it."
+        )
     completed = subprocess.run(
         ["gh", *arguments],
         cwd=target,
@@ -107,9 +109,13 @@ def _gh_json(target: Path, arguments: list[str]) -> dict[str, Any]:
     try:
         result = json.loads(output)
     except json.JSONDecodeError as error:
-        raise LibraryError("GitHub CLI returned invalid JSON; cannot evaluate the merge gate.") from error
+        raise LibraryError(
+            "GitHub CLI returned invalid JSON; cannot evaluate the merge gate."
+        ) from error
     if not isinstance(result, dict):
-        raise LibraryError("GitHub CLI returned an unexpected JSON result; cannot evaluate the merge gate.")
+        raise LibraryError(
+            "GitHub CLI returned an unexpected JSON result; cannot evaluate the merge gate."
+        )
     return result
 
 
@@ -138,7 +144,9 @@ def _repository_name(target: Path) -> tuple[str, str]:
     name_with_owner = _required_string(repository.get("nameWithOwner"), "repository name")
     owner, separator, name = name_with_owner.partition("/")
     if not separator or not owner or not name:
-        raise LibraryError("GitHub returned an invalid repository name; cannot evaluate the merge gate.")
+        raise LibraryError(
+            "GitHub returned an invalid repository name; cannot evaluate the merge gate."
+        )
     return owner, name
 
 
@@ -170,18 +178,26 @@ def review_threads(target: Path, pr_number: int) -> list[dict[str, Any]]:
             page_threads = connection["nodes"]
             page_info = connection["pageInfo"]
         except (KeyError, TypeError) as error:
-            raise LibraryError("GitHub returned incomplete review-thread data; cannot evaluate the merge gate.") from error
+            raise LibraryError(
+                "GitHub returned incomplete review-thread data; cannot evaluate the merge gate."
+            ) from error
         if not isinstance(page_threads, list) or not isinstance(page_info, dict):
-            raise LibraryError("GitHub returned invalid review-thread data; cannot evaluate the merge gate.")
+            raise LibraryError(
+                "GitHub returned invalid review-thread data; cannot evaluate the merge gate."
+            )
         if not all(isinstance(thread, dict) for thread in page_threads):
-            raise LibraryError("GitHub returned invalid review-thread data; cannot evaluate the merge gate.")
+            raise LibraryError(
+                "GitHub returned invalid review-thread data; cannot evaluate the merge gate."
+            )
         threads.extend(page_threads)
         has_next_page = page_info.get("hasNextPage")
         next_cursor = page_info.get("endCursor")
         if has_next_page is False:
             return threads
         if has_next_page is not True or not isinstance(next_cursor, str) or not next_cursor:
-            raise LibraryError("GitHub returned invalid review-thread pagination; cannot evaluate the merge gate.")
+            raise LibraryError(
+                "GitHub returned invalid review-thread pagination; cannot evaluate the merge gate."
+            )
         cursor = next_cursor
 
 
@@ -239,7 +255,9 @@ def merge_gate(target: Path, pr_number: int) -> MergeGate:
     pending_checks: list[str] = []
     for check in checks:
         if not isinstance(check, dict):
-            raise LibraryError("GitHub returned invalid check data; cannot evaluate the merge gate.")
+            raise LibraryError(
+                "GitHub returned invalid check data; cannot evaluate the merge gate."
+            )
         state = _check_state(check)
         if state == "failed":
             failed_checks.append(_check_name(check))
@@ -268,7 +286,9 @@ def resolve_review_thread(target: Path, pr_number: int, thread_id: str) -> None:
     if not thread_id:
         raise LibraryError("review thread ID must not be empty")
     merge_policy(target)
-    thread = next((item for item in review_threads(target, pr_number) if item.get("id") == thread_id), None)
+    thread = next(
+        (item for item in review_threads(target, pr_number) if item.get("id") == thread_id), None
+    )
     if thread is None:
         raise LibraryError("review thread does not belong to this pull request")
     if thread.get("isResolved") is True:
@@ -276,13 +296,24 @@ def resolve_review_thread(target: Path, pr_number: int, thread_id: str) -> None:
     project = _project_directory(target)
     response = _gh_json(
         project,
-        ["api", "graphql", "-f", f"query={_RESOLVE_THREAD_MUTATION}", "-F", f"threadId={thread_id}"],
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={_RESOLVE_THREAD_MUTATION}",
+            "-F",
+            f"threadId={thread_id}",
+        ],
     )
     try:
         resolved = response["data"]["resolveReviewThread"]["thread"]
     except (KeyError, TypeError) as error:
         raise LibraryError("GitHub did not confirm review-thread resolution") from error
-    if not isinstance(resolved, dict) or resolved.get("id") != thread_id or resolved.get("isResolved") is not True:
+    if (
+        not isinstance(resolved, dict)
+        or resolved.get("id") != thread_id
+        or resolved.get("isResolved") is not True
+    ):
         raise LibraryError("GitHub did not confirm review-thread resolution")
 
 

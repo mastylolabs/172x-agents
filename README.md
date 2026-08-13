@@ -70,25 +70,27 @@ Idea
 
 Users can add new agents, remove stages, or create smaller workflows without changing Python code.
 
+For project-specific composition, select **172X · Workflow Composer** from Codex `/skills`. It proposes a workflow from the installed roles, waits for your approval, then writes project-owned Markdown under `.172x/workflows/`. Run `agents install codex python --force` afterward to generate that workflow as its own native `/skills` entry. This remains Markdown composition, not a 172X workflow runtime.
+
 ## Initial agent library
 
 The first release ships only the roles required by the bundled workflows:
 
-- Brief Agent
-- Discovery Agent
-- Market Research Agent
-- Technical Feasibility Agent
-- Product Specification Agent
-- UX/UI Design Agent
-- Backend Architecture Agent
-- General Coding Agent
-- Frontend Implementation Agent
-- Backend Implementation Agent
-- QA Agent
-- Frontend Review Agent
-- Backend Review Agent
-- Security Review Agent
-- PR Review Agent
+- Brief Author
+- Discovery Specialist
+- Market Researcher
+- Technical Feasibility Specialist
+- Product Specification Specialist
+- UX/UI Designer
+- Principal Architect
+- Principal Engineer
+- Frontend Engineer
+- Backend Engineer
+- QA Engineer
+- Frontend Reviewer
+- Backend Reviewer
+- Security Reviewer
+- PR Reviewer
 
 These are operational roles, not novelty personalities. Each definition must specify its mission, inputs, process, deliverables, evidence requirements, handoff contract, and boundaries.
 
@@ -237,13 +239,15 @@ In the target project:
       SKILL.md
       agents/openai.yaml
       references/
-        agents/*.md
+        agents/{product,design,platform,quality,security}/*.md
         workflows/*.md
-        platform/architecture-patterns.md
+        platform/*.md
+      assets/
+        platform/*.{md,mmd}
     172x-dev/
       SKILL.md
       agents/openai.yaml
-    172x-brief/
+    172x-brief-author/
       SKILL.md
       agents/openai.yaml
     172x-<other-agent-or-workflow>/
@@ -293,7 +297,7 @@ Generated paths are owned by 172X Agents. Installation is project-scoped, idempo
 For 172X maintainers, edit the canonical source:
 
 ```text
-src/agent_workflows/library/agents/brief.md
+src/agent_workflows/library/agents/product/brief-author.md
 ```
 
 Then reinstall with `--force` to regenerate the matching Codex definition:
@@ -301,6 +305,8 @@ Then reinstall with `--force` to regenerate the matching Codex definition:
 ```bash
 agents install codex python --force
 ```
+
+For an installation created before the role-name update, this explicit refresh also removes the known old generated specialist files so the `/skills` picker contains only current 172X roles.
 
 For an installed project, treat `.codex/agents/172x-*.toml` as owned generated content. Do not edit it by hand: a future install will detect a conflict or replace it when `--force` is used. Project-specific Markdown overrides are a future addition, not behavior implemented today.
 

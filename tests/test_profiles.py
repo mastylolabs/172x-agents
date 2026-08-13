@@ -8,8 +8,8 @@ from agent_workflows.profiles import (
     active_gate_commands,
     capability_rows,
     default_profile,
-    gate_install_command,
     gate_commands,
+    gate_install_command,
     gate_tools_declared,
     load_profile,
     project_toml,
@@ -41,7 +41,9 @@ def test_python_gate_commands_reuse_the_repository_runner(tmp_path: Path) -> Non
     assert commands == (("uv", "run", "ruff", "check", "."), ("uv", "run", "pytest"))
 
 
-def test_python_gate_install_uses_uv_for_a_project_with_a_pyproject(monkeypatch, tmp_path: Path) -> None:
+def test_python_gate_install_uses_uv_for_a_project_with_a_pyproject(
+    monkeypatch, tmp_path: Path
+) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'example'\n", encoding="utf-8")
     monkeypatch.setattr("agent_workflows.profiles.shutil.which", lambda value: "/usr/local/bin/uv")
 

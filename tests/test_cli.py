@@ -57,6 +57,57 @@ def test_selection_without_launch_writes_expected_state(tmp_path: Path) -> None:
     assert "172X · Dev" in result.output
 
 
+def test_project_owned_workflow_lists_and_selects_without_launch(tmp_path: Path) -> None:
+    app = create_app()
+    workflow = tmp_path / ".172x/workflows/feedback-triage.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        """---
+id: feedback-triage
+name: Feedback Triage Workflow
+description: Converts validated feedback into a bounded engineering handoff.
+version: 1
+---
+## Purpose
+Turn feedback into an implementation handoff.
+## Inputs
+Feedback and repository context.
+## Participating agents
+- `discovery-specialist`
+- `principal-engineer`
+- `qa-engineer`
+## Flow
+1. `discovery-specialist` bounds the feedback.
+2. `principal-engineer` implements the agreed work.
+3. `qa-engineer` verifies it.
+## Parallel work
+None.
+## Feedback loops
+QA evidence returns to `principal-engineer` once.
+## Human gates
+The human approves scope and decides next steps.
+## Completion criteria
+A bounded handoff and QA evidence exist.
+## Failure and escalation
+Stop for ambiguous feedback.
+""",
+        encoding="utf-8",
+    )
+    install_configured_codex(tmp_path, default_profile())
+
+    listed = runner.invoke(app, ["workflows", "--target", str(tmp_path)])
+    selected = runner.invoke(
+        app,
+        ["--target", str(tmp_path), "--workflow", "feedback-triage", "--no-launch"],
+    )
+
+    assert listed.exit_code == 0
+    assert "feedback-triage" in listed.output
+    assert selected.exit_code == 0
+    assert "172X · Feedback Triage" in selected.output
+    assert (tmp_path / ".172x/active-workflow").read_text(encoding="utf-8") == "feedback-triage\n"
+
+
 def test_launch_uses_selected_workflow(monkeypatch, tmp_path: Path) -> None:
     app = create_app()
     install_configured_codex(tmp_path, default_profile())
@@ -101,7 +152,9 @@ def test_workflow_launch_forwards_codex_options(monkeypatch, tmp_path: Path) -> 
     assert launched == [("--model", "gpt-5.4", "--ask-for-approval", "never")]
 
 
-def test_workflow_launch_accepts_unknown_codex_option_before_workflow(monkeypatch, tmp_path: Path) -> None:
+def test_workflow_launch_accepts_unknown_codex_option_before_workflow(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = create_app()
     install_configured_codex(tmp_path, default_profile())
     launched: list[tuple[str, ...]] = []
@@ -207,7 +260,9 @@ def test_profiled_codex_install_writes_reviewed_project_config(monkeypatch, tmp_
         "gate_install_command",
         lambda target, profile: ("uv", "add", "--dev", *profile.gate_tools),
     )
-    monkeypatch.setattr(agents_cli, "install_gate_tools", lambda target, profile: ("uv", "add", "--dev"))
+    monkeypatch.setattr(
+        agents_cli, "install_gate_tools", lambda target, profile: ("uv", "add", "--dev")
+    )
 
     result = runner.invoke(
         app,
@@ -255,7 +310,9 @@ def test_guided_install_uses_supported_defaults(monkeypatch, tmp_path: Path) -> 
         "gate_install_command",
         lambda target, profile: ("uv", "add", "--dev", *profile.gate_tools),
     )
-    monkeypatch.setattr(agents_cli, "install_gate_tools", lambda target, profile: ("uv", "add", "--dev"))
+    monkeypatch.setattr(
+        agents_cli, "install_gate_tools", lambda target, profile: ("uv", "add", "--dev")
+    )
 
     result = runner.invoke(
         app,
@@ -268,7 +325,9 @@ def test_guided_install_uses_supported_defaults(monkeypatch, tmp_path: Path) -> 
     assert 'tools = ["mypy", "ruff"]' in config
 
 
-def test_codex_install_prompts_for_and_installs_default_gate_tools(monkeypatch, tmp_path: Path) -> None:
+def test_codex_install_prompts_for_and_installs_default_gate_tools(
+    monkeypatch, tmp_path: Path
+) -> None:
     app = create_app()
     installed: list[tuple[str, ...]] = []
     monkeypatch.setattr(agents_cli, "_check_profile_prerequisites", lambda target, profile: None)

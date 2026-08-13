@@ -1,0 +1,7 @@
+flowchart LR
+    User[User or external actor] --> App[System or product]
+    App --> Dependency[External dependency]
+    App --> Store[(System-owned data)]
+
+    classDef owned fill:#dbeafe,stroke:#2563eb,color:#111827
+    class App,Store owned

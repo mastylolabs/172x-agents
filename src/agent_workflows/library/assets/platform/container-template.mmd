@@ -1,0 +1,9 @@
+flowchart LR
+    Client[Client] --> API[API or application]
+    API --> Domain[Domain module]
+    Domain --> Store[(Primary data store)]
+    API --> Worker[Background worker]
+    Worker --> Queue[(Work queue)]
+
+    classDef owned fill:#dbeafe,stroke:#2563eb,color:#111827
+    class API,Domain,Store,Worker,Queue owned

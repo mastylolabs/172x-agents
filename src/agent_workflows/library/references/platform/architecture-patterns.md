@@ -18,6 +18,14 @@ Use this reference when a backend or cross-discipline design requires a conseque
 
 **Guardrails:** define module ownership, keep internal APIs explicit, prevent direct cross-module data access, and avoid a global utility layer that erases boundaries.
 
+## Layered application
+
+**Use when:** the application is small to medium and its request, application, domain, and infrastructure concerns are stable and easy to separate.
+
+**Benefits:** familiar navigation, clear dependency direction, and a straightforward place for cross-cutting concerns.
+
+**Guardrails:** do not force every feature through a generic service layer. Keep domain logic out of controllers and persistence details out of business rules.
+
 ## Vertical slices
 
 **Use when:** product work is organized around user capabilities rather than technical layers.
@@ -44,6 +52,22 @@ Use this reference when a backend or cross-discipline design requires a conseque
 
 **Guardrails:** define message ownership, idempotency keys, ordering requirements, retry and dead-letter behavior, replay/backfill policy, observability, and user-visible eventual-consistency states.
 
+## Pub/sub
+
+**Use when:** one business event must inform multiple independent consumers, such as notifications, analytics, search indexing, or downstream integrations.
+
+**Benefits:** producers remain unaware of consumers and new consumers can subscribe without changing the producer.
+
+**Guardrails:** name events as past facts, establish ownership and schema evolution rules, and assume at-least-once delivery unless the platform proves otherwise. Do not use pub/sub for a command that needs one accountable handler.
+
+## Queue-based background work
+
+**Use when:** one owner must process a task asynchronously, retry it safely, or smooth burst load.
+
+**Benefits:** explicit work ownership, bounded concurrency, and controllable retry behavior.
+
+**Guardrails:** distinguish commands from events, define idempotency and visibility timeout behavior, provide a failure queue, and keep user-visible status accurate.
+
 ## Ports and adapters
 
 **Use when:** long-lived business rules need to remain independent of databases, web frameworks, queues, or third-party providers.
@@ -60,6 +84,22 @@ Use this reference when a backend or cross-discipline design requires a conseque
 
 **Guardrails:** document source of truth, projection lag, rebuild strategy, data reconciliation, and behavior while projections are stale.
 
+## Event sourcing
+
+**Use when:** the immutable history of domain decisions is itself essential and the team can operate event versioning, projections, replay, and reconciliation.
+
+**Benefits:** rich auditability and reconstructable state for suitable domains.
+
+**Watch-outs:** it is not a generic logging mechanism. Projection correctness, privacy deletion, schema evolution, and operational recovery become first-class concerns.
+
+## Serverless and managed functions
+
+**Use when:** workload is intermittent, event-triggered, operational simplicity matters, and execution constraints fit the request.
+
+**Benefits:** low infrastructure management and natural scaling for bounded stateless work.
+
+**Watch-outs:** cold starts, duration limits, local development, vendor coupling, and distributed observability. Keep durable state and workflows explicit rather than hidden in chained functions.
+
 ## Data ownership and migrations
 
 Every pattern needs explicit ownership for schemas, API contracts, and personal data. Prefer backward-compatible changes, staged migrations, safe defaults, observable backfills, and rollback or forward-repair plans. A service boundary without data ownership is not a boundary.
@@ -69,5 +109,7 @@ Every pattern needs explicit ownership for schemas, API contracts, and personal 
 - Microservices without independent ownership and operational maturity.
 - Shared databases across purportedly independent services.
 - Async processing without idempotency, retries, or a failure queue.
+- Pub/sub used as an untraceable replacement for a direct command.
+- Event sourcing adopted solely to appear sophisticated.
 - A distributed transaction disguised as a sequence of synchronous calls.
 - A clean diagram with no ownership, failure, migration, or authorization story.

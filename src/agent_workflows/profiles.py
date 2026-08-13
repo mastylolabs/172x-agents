@@ -72,7 +72,11 @@ def gate_commands(profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
         if not isinstance(value, dict):
             raise LibraryError(f"invalid bundled language profile tool: {tool}")
         command = value.get("command")
-        if not isinstance(command, list) or not command or not all(isinstance(part, str) for part in command):
+        if (
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(part, str) for part in command)
+        ):
             raise LibraryError(f"invalid bundled language profile command: {tool}")
         commands.append(tuple(command))
     return tuple(commands)
@@ -154,7 +158,11 @@ def gate_install_command(target: Path, profile: ProjectProfile) -> tuple[str, ..
         return ("uv", "add", "--dev", "--default-index", PYPI_SIMPLE_INDEX, *profile.gate_tools)
     if runner[:1] == ("poetry",):
         return ("poetry", "add", "--group", "dev", *profile.gate_tools)
-    if profile.language == "python" and (project / "pyproject.toml").is_file() and shutil.which("uv"):
+    if (
+        profile.language == "python"
+        and (project / "pyproject.toml").is_file()
+        and shutil.which("uv")
+    ):
         return ("uv", "add", "--dev", "--default-index", PYPI_SIMPLE_INDEX, *profile.gate_tools)
     raise LibraryError(
         "cannot safely install selected Python gate tools: use an existing uv or Poetry project, "
@@ -178,7 +186,16 @@ def gate_tools_declared(target: Path, profile: ProjectProfile) -> bool:
         if isinstance(values, list):
             for value in values:
                 if isinstance(value, str):
-                    declared.add(value.split(";", 1)[0].split("[", 1)[0].split("=", 1)[0].split(">", 1)[0].split("<", 1)[0].split("~", 1)[0].strip().casefold())
+                    declared.add(
+                        value.split(";", 1)[0]
+                        .split("[", 1)[0]
+                        .split("=", 1)[0]
+                        .split(">", 1)[0]
+                        .split("<", 1)[0]
+                        .split("~", 1)[0]
+                        .strip()
+                        .casefold()
+                    )
 
     project = data.get("project")
     if isinstance(project, dict):
@@ -265,7 +282,9 @@ def validate_profile(profile: ProjectProfile) -> None:
         raise LibraryError("gate tools must be a non-empty set of unique supported tool IDs")
     unknown_tools = [tool for tool in profile.gate_tools if tool not in supported_tools]
     if unknown_tools:
-        raise LibraryError(f"unsupported {profile.language} gate tool(s): {', '.join(unknown_tools)}")
+        raise LibraryError(
+            f"unsupported {profile.language} gate tool(s): {', '.join(unknown_tools)}"
+        )
     if profile.change_request_kind != "pull_request":
         raise LibraryError("change-request kind must be pull_request for the GitHub provider")
     if profile.base_branch != "main":
@@ -352,7 +371,12 @@ def load_profile(target: Path) -> ProjectProfile:
     provider = _table(data, "provider")
     gate = _table(data, "gate")
     change_request = _table(data, "change_request")
-    if set(host) != {"id"} or set(language) != {"id"} or set(scm) != {"id"} or set(provider) != {"id"}:
+    if (
+        set(host) != {"id"}
+        or set(language) != {"id"}
+        or set(scm) != {"id"}
+        or set(provider) != {"id"}
+    ):
         raise LibraryError("host, language, scm, and provider tables must contain only id")
     if set(gate) != {"tools"}:
         raise LibraryError("gate table must contain only its documented fields")
@@ -403,15 +427,23 @@ def prerequisite_rows(target: Path, profile: ProjectProfile) -> tuple[tuple[str,
         return (("Target", False, f"not a directory: {target}"),)
     validate_profile(profile)
     rows: list[tuple[str, bool, str]] = []
-    rows.append(("Platform", detected_platform() == "macos", f"detected {detected_platform()}; macos is supported"))
+    rows.append(
+        (
+            "Platform",
+            detected_platform() == "macos",
+            f"detected {detected_platform()}; macos is supported",
+        )
+    )
     rows.append(("Host executable", shutil.which(profile.host) is not None, profile.host))
     git_available = shutil.which("git") is not None
     rows.append(("Git executable", git_available, "git"))
-    git_repository = git_available and _command_output(
-        project, ["git", "rev-parse", "--is-inside-work-tree"]
-    )[0]
+    git_repository = (
+        git_available and _command_output(project, ["git", "rev-parse", "--is-inside-work-tree"])[0]
+    )
     rows.append(("Git repository", git_repository, "working tree required"))
-    remote_ok = git_repository and _command_output(project, ["git", "remote", "get-url", "origin"])[0]
+    remote_ok = (
+        git_repository and _command_output(project, ["git", "remote", "get-url", "origin"])[0]
+    )
     rows.append(("Git remote", remote_ok, "origin required"))
     gh_available = shutil.which("gh") is not None
     rows.append(("GitHub CLI", gh_available, "gh"))
@@ -435,7 +467,9 @@ def prerequisite_rows(target: Path, profile: ProjectProfile) -> tuple[tuple[str,
             "write, maintain, or admin access required for branch and change-request actions",
         )
     )
-    for tool, command in zip(profile.gate_tools, active_gate_commands(project, profile), strict=True):
+    for tool, command in zip(
+        profile.gate_tools, active_gate_commands(project, profile), strict=True
+    ):
         executable = command[0]
         rows.append((f"Gate tool: {tool}", shutil.which(executable) is not None, " ".join(command)))
     rows.append(

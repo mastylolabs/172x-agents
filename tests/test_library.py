@@ -2,7 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from agent_workflows.library import LibraryError, domains, find_item, parse_markdown, validate_library
+from agent_workflows.library import (
+    LibraryError,
+    domains,
+    find_item,
+    load_workflows,
+    parse_markdown,
+    validate_library,
+)
 
 
 def test_bundled_library_validates() -> None:
@@ -23,25 +30,25 @@ def test_domains_are_markdown_defined_and_cover_each_agent_once() -> None:
 
     assert list(grouped) == ["Product", "Design", "Platform", "Quality", "Security"]
     assert [agent.id for agent in grouped["Product"]] == [
-        "brief",
-        "discovery",
-        "market-research",
-        "product-specification",
+        "brief-author",
+        "discovery-specialist",
+        "market-researcher",
+        "product-specification-specialist",
     ]
     assert [agent.id for agent in grouped["Quality"]] == [
-        "backend-review",
-        "design-architecture-review",
-        "frontend-review",
-        "pr-review",
-        "qa",
+        "backend-reviewer",
+        "design-architecture-reviewer",
+        "frontend-reviewer",
+        "pr-reviewer",
+        "qa-engineer",
     ]
-    assert [agent.id for agent in grouped["Security"]] == ["security-review"]
+    assert [agent.id for agent in grouped["Security"]] == ["security-reviewer"]
 
 
 def test_dev_loop_defines_the_full_autonomous_handoff_contract() -> None:
     workflow = find_item("workflows", "dev-loop")
 
-    assert "`brief`" in workflow.body
+    assert "`brief-author`" in workflow.body
     assert "No change-request number is an input" in workflow.body
     assert "every tool selected in `[gate].tools`" in workflow.body
     assert "`MF` (Must Fix), `NH` (Nice to Have), or `Q`" in workflow.body
@@ -56,7 +63,7 @@ def test_codex_skill_prevents_duplicate_stage_delegations() -> None:
     skill = resources.files("agent_workflows").joinpath("library", "codex", "SKILL.md").read_text()
 
     assert "Dispatch exactly one active delegation" in skill
-    assert "Do not dispatch a second `brief` agent" in skill
+    assert "Do not dispatch a second `brief-author` agent" in skill
 
 
 def test_codex_skill_exposes_the_172x_catalog_front_door() -> None:
@@ -67,6 +74,99 @@ def test_codex_skill_exposes_the_172x_catalog_front_door() -> None:
     assert "name: 172x" in skill
     assert "`list`: Read the installed references and show two compact catalogs" in skill
     assert "Run a workflow with: $172x run <workflow-id>" in skill
+
+
+def test_principal_architect_has_pattern_guidance_and_mermaid_assets() -> None:
+    from importlib import resources
+
+    architect = find_item("agents", "principal-architect")
+    patterns = (
+        resources.files("agent_workflows")
+        .joinpath("library", "references", "platform", "architecture-patterns.md")
+        .read_text()
+    )
+    assert architect.relative_path == "platform/principal-architect.md"
+    assert "architecture-patterns.md" in architect.body
+    assert "system-context-template.mmd" in architect.body
+    for pattern in ("Modular monolith", "Ports and adapters", "Pub/sub", "Event sourcing"):
+        assert f"## {pattern}" in patterns
+    assert (
+        resources.files("agent_workflows")
+        .joinpath("library", "assets", "platform", "event-flow-template.mmd")
+        .is_file()
+    )
+
+
+def test_project_workflow_rejects_reserved_skill_ids(tmp_path: Path) -> None:
+    workflow = tmp_path / ".172x/workflows/invalid.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        """---
+id: workflow-composer
+name: Invalid Workflow
+description: Invalid project workflow.
+version: 1
+---
+## Purpose
+Invalid.
+## Inputs
+Task.
+## Participating agents
+- `missing-agent`
+## Flow
+1. Invalid.
+## Parallel work
+None.
+## Feedback loops
+None.
+## Human gates
+Human decides.
+## Completion criteria
+Never.
+## Failure and escalation
+Stop.
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(LibraryError, match="reserved 172X skill"):
+        load_workflows(tmp_path)
+
+
+def test_project_workflow_rejects_unknown_agents(tmp_path: Path) -> None:
+    workflow = tmp_path / ".172x/workflows/invalid.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        """---
+id: invalid-workflow
+name: Invalid Workflow
+description: Invalid project workflow.
+version: 1
+---
+## Purpose
+Invalid.
+## Inputs
+Task.
+## Participating agents
+- `missing-agent`
+## Flow
+1. Invalid.
+## Parallel work
+None.
+## Feedback loops
+None.
+## Human gates
+Human decides.
+## Completion criteria
+Never.
+## Failure and escalation
+Stop.
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(LibraryError, match="unknown participating agents: missing-agent"):
+        load_workflows(tmp_path)
 
 
 @pytest.mark.parametrize(

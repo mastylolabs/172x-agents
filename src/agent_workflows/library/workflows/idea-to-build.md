@@ -11,29 +11,29 @@ Build a product from an idea, vision, and named source materials without allowin
 The idea, vision, explicitly named documentation or repository paths, desired outcome, constraints, and any existing product or technical context.
 
 ## Participating agents
-- `brief`
-- `ux-ui-design`
-- `backend-architecture`
-- `design-architecture-review`
-- `frontend-implementation`
-- `backend-implementation`
-- `coding`
-- `qa`
-- `frontend-review`
-- `backend-review`
-- `security-review`
-- `pr-review`
+- `brief-author`
+- `ux-ui-designer`
+- `principal-architect`
+- `design-architecture-reviewer`
+- `frontend-engineer`
+- `backend-engineer`
+- `principal-engineer`
+- `qa-engineer`
+- `frontend-reviewer`
+- `backend-reviewer`
+- `security-reviewer`
+- `pr-reviewer`
 
 ## Flow
-1. `brief` reads all supplied materials and produces an authoritative build brief.
-2. `ux-ui-design` and `backend-architecture` work independently from the same brief.
-3. `design-architecture-review` returns READY, REVISE, or BLOCKED with a cross-discipline contract matrix.
-4. REVISE returns to `brief`, which reconciles only the documented gaps and issues a revised brief. BLOCKED stops for a human decision.
+1. `brief-author` reads all supplied materials and produces an authoritative build brief.
+2. `ux-ui-designer` and `principal-architect` work independently from the same brief.
+3. `design-architecture-reviewer` returns READY, REVISE, or BLOCKED with a cross-discipline contract matrix.
+4. REVISE returns to `brief-author`, which reconciles only the documented gaps and issues a revised brief. BLOCKED stops for a human decision.
 5. When the review is READY, stop for the human build gate with the brief, designs, architecture, and contract matrix.
-6. `frontend-implementation` and `backend-implementation` implement in parallel against stable contracts. Use `coding` only for explicitly assigned cross-cutting work.
-7. `qa` verifies the integrated result against the brief and acceptance criteria.
-8. `frontend-review`, `backend-review`, and `security-review` independently review QA-backed work.
-9. `pr-review` synthesizes the evidence and provides a local recommendation. Stop for the human merge, release, or further-work decision.
+6. `frontend-engineer` and `backend-engineer` implement in parallel against stable contracts. Use `principal-engineer` only for explicitly assigned cross-cutting work.
+7. `qa-engineer` verifies the integrated result against the brief and acceptance criteria.
+8. `frontend-reviewer`, `backend-reviewer`, and `security-reviewer` independently review QA-backed work.
+9. `pr-reviewer` synthesizes the evidence and provides a local recommendation. Stop for the human merge, release, or further-work decision.
 
 ## Parallel work
 UX/UI design and backend architecture may run in parallel after the Brief. Frontend and backend implementation may run in parallel only after READY review and the human build gate. Frontend, backend, and security review may run in parallel after QA evidence exists.

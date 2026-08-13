@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from agent_workflows.github import merge_gate, merge_policy, merge_pull_request, resolve_review_thread
+from agent_workflows.github import (
+    merge_gate,
+    merge_policy,
+    merge_pull_request,
+    resolve_review_thread,
+)
 from agent_workflows.library import LibraryError
 from agent_workflows.profiles import default_profile, project_toml
 
@@ -50,7 +55,9 @@ def _thread_response(*, unresolved: bool = False) -> dict[str, object]:
     }
 
 
-def _mock_gh(monkeypatch, *, pr: dict[str, object], threads: dict[str, object], merged: bool = True):
+def _mock_gh(
+    monkeypatch, *, pr: dict[str, object], threads: dict[str, object], merged: bool = True
+):
     calls: list[list[str]] = []
     state = {"merged": False}
 
@@ -62,10 +69,15 @@ def _mock_gh(monkeypatch, *, pr: dict[str, object], threads: dict[str, object], 
         if command[:2] == ["auth", "status"]:
             return subprocess.CompletedProcess(arguments, 0, "authenticated\n", "")
         if command[:3] == ["repo", "view", "--json"]:
-            return subprocess.CompletedProcess(arguments, 0, json.dumps({"nameWithOwner": "172x/example"}), "")
+            return subprocess.CompletedProcess(
+                arguments, 0, json.dumps({"nameWithOwner": "172x/example"}), ""
+            )
         if command[:3] == ["pr", "view", "17"]:
             if command[-1] == "state,mergedAt":
-                result = {"state": "MERGED" if state["merged"] else "OPEN", "mergedAt": "now" if state["merged"] else None}
+                result = {
+                    "state": "MERGED" if state["merged"] else "OPEN",
+                    "mergedAt": "now" if state["merged"] else None,
+                }
             else:
                 result = pr
             return subprocess.CompletedProcess(arguments, 0, json.dumps(result), "")
@@ -75,7 +87,15 @@ def _mock_gh(monkeypatch, *, pr: dict[str, object], threads: dict[str, object], 
                 return subprocess.CompletedProcess(
                     arguments,
                     0,
-                    json.dumps({"data": {"resolveReviewThread": {"thread": {"id": "PRRT_1", "isResolved": True}}}}),
+                    json.dumps(
+                        {
+                            "data": {
+                                "resolveReviewThread": {
+                                    "thread": {"id": "PRRT_1", "isResolved": True}
+                                }
+                            }
+                        }
+                    ),
                     "",
                 )
             return subprocess.CompletedProcess(arguments, 0, json.dumps(threads), "")
@@ -93,9 +113,9 @@ def test_merge_policy_requires_exact_repository_opt_in(tmp_path: Path) -> None:
         merge_policy(tmp_path)
 
     (tmp_path / "172x.toml").write_text(
-        "[host]\nid = \"codex\"\n\n[language]\nid = \"python\"\n\n[scm]\nid = \"git\"\n\n"
-        "[provider]\nid = \"github\"\n\n[gate]\ntools = [\"mypy\"]\n\n"
-        "[change_request]\nkind = \"pull_request\"\nbase_branch = \"release\"\nmerge_method = \"squash\"\nmerge_current_branch = true\n",
+        '[host]\nid = "codex"\n\n[language]\nid = "python"\n\n[scm]\nid = "git"\n\n'
+        '[provider]\nid = "github"\n\n[gate]\ntools = ["mypy"]\n\n'
+        '[change_request]\nkind = "pull_request"\nbase_branch = "release"\nmerge_method = "squash"\nmerge_current_branch = true\n',
         encoding="utf-8",
     )
     with pytest.raises(LibraryError, match="base_branch must be main"):
@@ -109,7 +129,9 @@ def test_dev_loop_policy_handles_any_clean_current_branch_by_default(tmp_path: P
 
     assert policy.merge_current_branch is True
     (tmp_path / "172x.toml").write_bytes(
-        project_toml(default_profile()).replace(b"merge_current_branch = true", b"merge_current_branch = false")
+        project_toml(default_profile()).replace(
+            b"merge_current_branch = true", b"merge_current_branch = false"
+        )
     )
     assert merge_policy(tmp_path).merge_current_branch is False
 
@@ -124,7 +146,14 @@ def test_merge_gate_requires_live_github_evidence(monkeypatch, tmp_path: Path) -
     assert gate.passing_checks == 1
     assert gate.resolved_threads == 1
     assert ["gh", "auth", "status"] in calls
-    assert ["gh", "pr", "view", "17", "--json", "number,url,state,isDraft,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid"] in calls
+    assert [
+        "gh",
+        "pr",
+        "view",
+        "17",
+        "--json",
+        "number,url,state,isDraft,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid",
+    ] in calls
 
 
 def test_merge_gate_rejects_non_passing_checks_without_merge(monkeypatch, tmp_path: Path) -> None:
@@ -141,7 +170,9 @@ def test_merge_gate_rejects_non_passing_checks_without_merge(monkeypatch, tmp_pa
     assert not any(command[1:3] == ["pr", "merge"] for command in calls)
 
 
-def test_merge_rechecks_gate_and_pins_checked_head_without_bypass(monkeypatch, tmp_path: Path) -> None:
+def test_merge_rechecks_gate_and_pins_checked_head_without_bypass(
+    monkeypatch, tmp_path: Path
+) -> None:
     _enable_dev_loop(tmp_path)
     calls = _mock_gh(monkeypatch, pr=_pr_json(), threads=_thread_response())
 
@@ -174,4 +205,8 @@ def test_merge_gate_rejects_unresolved_threads_and_resolution_checks_membership(
         resolve_review_thread(tmp_path, 17, "PRRT_other")
     resolve_review_thread(tmp_path, 17, "PRRT_1")
 
-    assert any("resolveReviewThread" in command[4] for command in calls if command[1:3] == ["api", "graphql"])
+    assert any(
+        "resolveReviewThread" in command[4]
+        for command in calls
+        if command[1:3] == ["api", "graphql"]
+    )

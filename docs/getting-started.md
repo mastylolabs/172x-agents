@@ -58,13 +58,13 @@ For the experimental autonomous coding cycle:
 agents --workflow dev-loop
 ```
 
-`dev-loop` takes your task, makes a Brief, normalizes a clean current non-main branch when the profile permits it, creates a new task branch, runs the selected engineering gate, opens its own GitHub pull request, gets independent QA/review, addresses Must Fix findings, and merges only after the live GitHub gate passes. It does not ask for a pull-request number. It is experimental until repeated live runs demonstrate reliable stage handoffs; see [validation status](DEV_LOOP_VALIDATION.md).
+`dev-loop` takes your task, makes a Brief Author handoff, normalizes a clean current non-main branch when the profile permits it, creates a new task branch, runs the selected engineering gate, opens its own GitHub pull request, gets independent QA/review, addresses Must Fix findings, and merges only after the live GitHub gate passes. It does not ask for a pull-request number. It is experimental until repeated live runs demonstrate reliable stage handoffs; see [validation status](DEV_LOOP_VALIDATION.md).
 
-The reviewer labels findings `MF` (Must Fix), `NH` (Nice to Have), or `Q` (clarification). Coding must fix MF; it may decline NH with an explanation in the pull request; Q needs an answer or user direction. The workflow stops after two review-return trips instead of spinning forever.
+The reviewer labels findings `MF` (Must Fix), `NH` (Nice to Have), or `Q` (clarification). Principal Engineer must fix MF; it may decline NH with an explanation in the pull request; Q needs an answer or user direction. The workflow stops after two review-return trips instead of spinning forever.
 
 ## Existing Codex session
 
-In an already-open Codex session, open `/skills` and select a direct 172X entry such as **172X · Dev Loop** or **172X · Brief**. The native picker scrolls and activates the selected workflow or specialist for the current task.
+In an already-open Codex session, open `/skills` and select a direct 172X entry such as **172X · Dev Loop**, **172X · Brief Author**, or **172X · Principal Architect**. The native picker scrolls and activates the selected workflow or specialist for the current task.
 
 The optional catalog skill remains available for text browsing:
 
@@ -73,3 +73,12 @@ $172x run dev-loop
 ```
 
 Use `$172x use idea-to-build` to select the next workflow. `$172x list` shows the installed workflows and specialist-agent catalog. `/workflow` is not a native Codex command.
+
+## Compose a project workflow
+
+Select **172X · Workflow Composer** from `/skills` when the bundled workflows do not fit. It proposes a workflow using only installed roles and waits for approval before writing `.172x/workflows/<workflow-id>.md`. Then validate and add the native picker entry:
+
+```bash
+agents workflows --target .
+agents install codex python --force
+```

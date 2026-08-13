@@ -63,12 +63,29 @@ agents doctor [--target PATH]
 ```text
 agents list [--target PATH]
 agents domains
-agents workflows
-agents show WORKFLOW_ID
+agents workflows [--target PATH]
+agents show WORKFLOW_ID [--target PATH]
 agents --workflow WORKFLOW_ID [--target PATH] [--no-launch]
 ```
 
-`list`, `domains`, `workflows`, and `show` read canonical Markdown. Selecting a workflow validates the committed profile and current Codex installation, writes `.172x/active-workflow`, and optionally launches the local `codex` executable with the matching direct native skill. It never installs or authenticates Codex.
+`list` and `domains` read the bundled catalog. `workflows` and `show` also include validated project-owned workflow Markdown from `.172x/workflows/` when `--target` is supplied. Selecting either a bundled or project-owned workflow validates the committed profile and current Codex installation, writes `.172x/active-workflow`, and optionally launches the local `codex` executable with the matching direct native skill. It never installs or authenticates Codex.
+
+## Project-owned workflow composition
+
+Open `/skills` and select **172X · Workflow Composer** to design a workflow from the installed roles. It proposes the role selection, handoffs, feedback limits, and human gates before writing one project-owned Markdown file:
+
+```text
+.172x/workflows/<workflow-id>.md
+```
+
+The Composer uses the same scalar frontmatter and required workflow sections as the bundled library. It does not create an executor, activate the workflow, or run it. After approving a new or revised workflow, run:
+
+```bash
+agents workflows --target .
+agents install codex python --force
+```
+
+The refresh validates the workflow against existing agent IDs and generates a native `/skills` entry. Project workflows are source files owned by the project; only their generated skill projections are 172X-managed.
 
 ### Codex CLI options
 
@@ -101,8 +118,9 @@ The first command is read-only. The last two use the selected GitHub profile and
 .agents/skills/172x-agents/**
 .agents/skills/172x-*/**
 .codex/agents/172x-*.toml
+.172x/workflows/*.md
 .172x/active-workflow
 172x.toml
 ```
 
-172X never writes Codex configuration, credentials, or arbitrary project files.
+The Workflow Composer writes only the documented project-owned workflow source path after user approval. The installer never writes Codex configuration, credentials, or arbitrary project files.

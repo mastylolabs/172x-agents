@@ -49,6 +49,9 @@ secrets.json
 
 # Local 172X state
 .172x/
+!.172x/
+!.172x/workflows/
+!.172x/workflows/**/*.md
 
 # Temporary files, logs, and generated scratch output
 *.log

@@ -11,21 +11,21 @@ Deliver a bounded coding request with independent verification and a local revie
 The user's request, repository instructions, acceptance criteria, and relevant project context.
 
 ## Participating agents
-- `coding`
-- `qa`
-- `pr-review`
+- `principal-engineer`
+- `qa-engineer`
+- `pr-reviewer`
 
 ## Flow
-1. `coding` implements the request and returns changed files, checks, results, and risks.
-2. `qa` independently evaluates the acceptance criteria and returns PASS or FAIL with evidence.
-3. On PASS, `pr-review` evaluates the request, diff context, and QA evidence.
+1. `principal-engineer` implements the request and returns changed files, checks, results, and risks.
+2. `qa-engineer` independently evaluates the acceptance criteria and returns PASS or FAIL with evidence.
+3. On PASS, `pr-reviewer` evaluates the request, diff context, and QA evidence.
 4. On APPROVED, provide the local recommendation and stop for the human merge decision.
 
 ## Parallel work
 No stage is parallel by default because QA and review require the preceding handoff.
 
 ## Feedback loops
-QA FAIL or PR review CHANGES_REQUESTED returns structured evidence to `coding`. Each return consumes one feedback cycle. After three cycles without approval, stop and escalate; do not weaken acceptance criteria.
+QA FAIL or PR review CHANGES_REQUESTED returns structured evidence to `principal-engineer`. Each return consumes one feedback cycle. After three cycles without approval, stop and escalate; do not weaken acceptance criteria.
 
 ## Human gates
 The user decides whether to merge after an APPROVED local recommendation. The workflow must stop after three feedback cycles for user direction.

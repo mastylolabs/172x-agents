@@ -10,10 +10,28 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Literal
 
-from .library import LibraryError, LibraryItem, find_item, library_directory, load_library
+from .library import LibraryError, LibraryItem, find_workflow, load_library, load_workflows
 from .profiles import CONFIG_PATH, ProjectProfile, load_profile, project_toml
 
-Action = Literal["CREATE", "UNCHANGED", "CONFLICT", "REPLACE"]
+Action = Literal["CREATE", "UNCHANGED", "CONFLICT", "REPLACE", "DELETE"]
+
+_RENAMED_AGENT_IDS = (
+    "backend-architecture",
+    "backend-implementation",
+    "backend-review",
+    "brief",
+    "coding",
+    "design-architecture-review",
+    "discovery",
+    "frontend-implementation",
+    "frontend-review",
+    "market-research",
+    "pr-review",
+    "product-specification",
+    "qa",
+    "security-review",
+    "ux-ui-design",
+)
 
 
 def _resource_bytes(parts: tuple[str, ...]) -> bytes:
@@ -48,8 +66,9 @@ def _agent_skill(agent: LibraryItem) -> bytes:
         f"---\nname: {skill_name}\ndescription: {json.dumps(f'172X {title}: {agent.description}')}\n---\n\n"
         f"# 172X · {title}\n\n"
         "You are using this 172X specialist directly, not running a workflow. Before responding, read "
-        f"`.agents/skills/172x-agents/references/agents/{agent.id}.md` completely and apply its "
-        "instructions to the user's current request. Deliver that specialist's observable result and "
+        f"`.agents/skills/172x-agents/references/agents/{agent.relative_path}` completely and apply its "
+        "instructions to the user's current request. Resolve any `references/` or `assets/` path named "
+        "there within `.agents/skills/172x-agents/`. Deliver that specialist's observable result and "
         "honor its evidence, handoff, and boundary rules. Do not claim that another agent, a provider, "
         "or a human completed an action unless it actually occurred.\n"
     ).encode()
@@ -57,24 +76,32 @@ def _agent_skill(agent: LibraryItem) -> bytes:
 
 def workflow_skill_title(workflow_id: str) -> str:
     """Return the short display label for one direct native workflow skill."""
-    return {
+    titles = {
         "dev": "Dev",
         "dev-loop": "Dev Loop",
         "idea-to-build": "Idea to Build",
         "idea-to-product": "Idea to Product",
-    }[workflow_id]
+    }
+    return titles.get(workflow_id, workflow_id.replace("-", " ").title())
+
+
+def _workflow_title(workflow: LibraryItem) -> str:
+    """Return a compact native-picker label for bundled or project workflows."""
+    if workflow.relative_path.startswith("custom/"):
+        return workflow.name.removesuffix(" Workflow")
+    return workflow_skill_title(workflow.id)
 
 
 def _workflow_skill(workflow: LibraryItem) -> bytes:
     """Render a one-click native Codex workflow skill that uses the shared coordinator."""
-    title = workflow_skill_title(workflow.id)
+    title = _workflow_title(workflow)
     skill_name = f"172x-{workflow.id}"
     return (
         f"---\nname: {skill_name}\ndescription: {json.dumps(f'172X {title}: {workflow.description}')}\n---\n\n"
         f"# 172X · {title}\n\n"
         f"Run the `{workflow.id}` workflow for the user's current task. Before any delegation, read "
         "`.agents/skills/172x-agents/SKILL.md` and then read "
-        f"`.agents/skills/172x-agents/references/workflows/{workflow.id}.md` completely. Apply the "
+        f"`.agents/skills/172x-agents/references/workflows/{workflow.relative_path}` completely. Apply the "
         "coordinator rules and execute this selected workflow immediately; do not ask the user to "
         "choose a workflow again. If the task or idea is missing, ask for it before delegation.\n"
     ).encode()
@@ -91,7 +118,28 @@ def _copy_resource_tree(resource: Traversable, destination: Path) -> dict[Path, 
     return files
 
 
-def managed_files() -> dict[Path, bytes]:
+def _workflow_composer_skill() -> bytes:
+    """Render the direct native skill that authors project-owned workflow Markdown."""
+    return b"""---
+name: 172x-workflow-composer
+description: Create or revise a project-owned 172X workflow from the installed role catalog without adding a workflow runtime.
+---
+
+# 172X \xc2\xb7 Workflow Composer
+
+Create a reviewable project-owned workflow, not an executable workflow engine.
+
+1. Read `.agents/skills/172x-agents/SKILL.md`, then inspect `.agents/skills/172x-agents/references/agents/` to select only shipped roles needed for the user's goal.
+2. Propose a concise flow with required handoffs, safe parallel work, feedback limits, and explicit human gates. Do not let an implementation role approve its own work. Do not invent agents, external actions, or a runtime.
+3. Before writing, show the user the proposed workflow ID, title, participating roles, flow, feedback loops, and human gates. Require explicit approval when overwriting an existing project workflow.
+4. After approval, create one Markdown file at `.172x/workflows/<workflow-id>.md`, using `.agents/skills/172x-agents/assets/workflows/custom-workflow-template.md`. The ID must be lowercase kebab-case and unique across bundled and project workflows. Fill every required section with concrete content.
+5. Validate the result with `agents workflows --target .` and refresh native skills with `agents install codex python --force`. Report the new direct picker entry as `172X \xc2\xb7 <workflow name without Workflow>`.
+
+Never write bundled library files, `.codex/config.toml`, credentials, or arbitrary workflow graphs. Do not activate or run the new workflow unless the user asks separately.
+"""
+
+
+def managed_files(target: Path | None = None) -> dict[Path, bytes]:
     """Return every owned installation path and its expected bytes."""
     files: dict[Path, bytes] = {
         Path(".agents/skills/172x-agents/SKILL.md"): _resource_bytes(("codex", "SKILL.md")),
@@ -99,14 +147,22 @@ def managed_files() -> dict[Path, bytes]:
             ("codex", "agents", "openai.yaml")
         ),
     }
+    composer_root = Path(".agents/skills/172x-workflow-composer")
+    files[composer_root / "SKILL.md"] = _workflow_composer_skill()
+    files[composer_root / "agents/openai.yaml"] = _skill_metadata(
+        "172X · Workflow Composer",
+        "Compose a project-owned workflow from the installed 172X roles.",
+        "Create a 172X workflow for the current project.",
+    )
     for kind in ("agents", "workflows"):
-        for source in library_directory(kind).iterdir():
-            if source.name.endswith(".md"):
-                files[Path(".agents/skills/172x-agents/references") / kind / source.name] = (
-                    source.read_bytes()
-                )
+        source_root = resources.files("agent_workflows").joinpath("library", kind)
+        files.update(
+            _copy_resource_tree(source_root, Path(".agents/skills/172x-agents/references") / kind)
+        )
     reference_root = resources.files("agent_workflows").joinpath("library", "references")
     files.update(_copy_resource_tree(reference_root, Path(".agents/skills/172x-agents/references")))
+    asset_root = resources.files("agent_workflows").joinpath("library", "assets")
+    files.update(_copy_resource_tree(asset_root, Path(".agents/skills/172x-agents/assets")))
     for agent in load_library("agents"):
         files[Path(".codex/agents") / f"172x-{agent.id}.toml"] = codex_toml(agent)
         skill_root = Path(".agents/skills") / f"172x-{agent.id}"
@@ -116,9 +172,13 @@ def managed_files() -> dict[Path, bytes]:
             agent.description,
             f"Use the 172X {agent.name.removesuffix(' Agent')} specialist for this task.",
         )
-    for workflow in load_library("workflows"):
+    for workflow in load_workflows(target):
+        if workflow.relative_path.startswith("custom/"):
+            files[
+                Path(".agents/skills/172x-agents/references/workflows") / workflow.relative_path
+            ] = Path(workflow.source).read_bytes()
         skill_root = Path(".agents/skills") / f"172x-{workflow.id}"
-        title = workflow_skill_title(workflow.id)
+        title = _workflow_title(workflow)
         files[skill_root / "SKILL.md"] = _workflow_skill(workflow)
         files[skill_root / "agents/openai.yaml"] = _skill_metadata(
             f"172X · {title}",
@@ -128,9 +188,11 @@ def managed_files() -> dict[Path, bytes]:
     return dict(sorted(files.items(), key=lambda item: item[0].as_posix()))
 
 
-def configured_codex_files(profile: ProjectProfile) -> dict[Path, bytes]:
+def configured_codex_files(
+    profile: ProjectProfile, target: Path | None = None
+) -> dict[Path, bytes]:
     """Return the Codex installation plus its reviewed project profile."""
-    files = managed_files()
+    files = managed_files(target)
     files[CONFIG_PATH] = project_toml(profile)
     return dict(sorted(files.items(), key=lambda item: item[0].as_posix()))
 
@@ -170,7 +232,30 @@ def _install_plan(
         else:
             action = "REPLACE" if force else "CONFLICT"
         plan.append((action, relative, contents))
+    for relative in _renamed_agent_paths():
+        try:
+            destination = _safe_destination(target, relative)
+        except LibraryError:
+            plan.append(("CONFLICT", relative, b""))
+            continue
+        if destination.exists():
+            action = "DELETE" if force else "CONFLICT"
+            plan.append((action, relative, b""))
     return plan
+
+
+def _renamed_agent_paths() -> tuple[Path, ...]:
+    """Return former v0.1 generated agent files removed during an explicit refresh."""
+    paths: list[Path] = []
+    for agent_id in _RENAMED_AGENT_IDS:
+        paths.extend(
+            (
+                Path(".codex/agents") / f"172x-{agent_id}.toml",
+                Path(".agents/skills") / f"172x-{agent_id}" / "SKILL.md",
+                Path(".agents/skills") / f"172x-{agent_id}" / "agents/openai.yaml",
+            )
+        )
+    return tuple(paths)
 
 
 def _conflict_error(plan: list[tuple[Action, Path, bytes]]) -> LibraryError:
@@ -179,13 +264,13 @@ def _conflict_error(plan: list[tuple[Action, Path, bytes]]) -> LibraryError:
     return LibraryError(
         "installation has conflicts in managed paths: "
         + ", ".join(conflicts)
-        + "; rerun with --force only if replacing those 172X-managed files is intended"
+        + "; rerun with --force only if replacing or removing those 172X-managed files is intended"
     )
 
 
 def install_plan(target: Path, force: bool = False) -> list[tuple[Action, Path, bytes]]:
     """Return the Codex installation plan for compatibility with the public API."""
-    return _install_plan(target, managed_files(), force=force)
+    return _install_plan(target, managed_files(target), force=force)
 
 
 def install_codex(
@@ -202,6 +287,9 @@ def install_codex(
         if action == "UNCHANGED":
             continue
         destination = _safe_destination(target, relative)
+        if action == "DELETE":
+            destination.unlink()
+            continue
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(contents)
     return plan
@@ -212,7 +300,7 @@ def install_configured_codex(
 ) -> list[tuple[Action, Path, bytes]]:
     """Install Codex content and one project-owned 172X profile atomically by plan."""
     target = _target_directory(target)
-    plan = _install_plan(target, configured_codex_files(profile), force=force)
+    plan = _install_plan(target, configured_codex_files(profile, target), force=force)
     if any(action == "CONFLICT" for action, _, _ in plan):
         raise _conflict_error(plan)
     if dry_run:
@@ -221,6 +309,9 @@ def install_configured_codex(
         if action == "UNCHANGED":
             continue
         destination = _safe_destination(target, relative)
+        if action == "DELETE":
+            destination.unlink()
+            continue
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(contents)
     return plan
@@ -239,7 +330,7 @@ def configured_integration_current(target: Path) -> bool:
         profile = load_profile(_target_directory(target))
         return all(
             action == "UNCHANGED"
-            for action, _, _ in _install_plan(target, configured_codex_files(profile))
+            for action, _, _ in _install_plan(target, configured_codex_files(profile, target))
         )
     except LibraryError:
         return False
@@ -247,8 +338,8 @@ def configured_integration_current(target: Path) -> bool:
 
 def select_workflow(target: Path, workflow_id: str) -> Path:
     """Persist one validated workflow ID; this is selection, not run state."""
-    find_item("workflows", workflow_id)
     target = _target_directory(target)
+    find_workflow(target, workflow_id)
     if not configured_integration_current(target):
         raise LibraryError("Codex integration is not current; run: agents install codex")
     relative = Path(".172x/active-workflow")
@@ -267,7 +358,7 @@ def active_workflow(target: Path) -> str | None:
     if not value.endswith("\n") or value.count("\n") != 1:
         return None
     try:
-        find_item("workflows", value[:-1])
+        find_workflow(target, value[:-1])
     except LibraryError:
         return None
     return value[:-1]

@@ -7,7 +7,6 @@ import shutil
 from pathlib import Path
 from typing import Annotated
 
-import click
 import typer
 
 from .codex import (
@@ -18,16 +17,22 @@ from .codex import (
     integration_current,
     launch_codex,
     select_workflow,
-    workflow_skill_title,
 )
 from .github import merge_gate, merge_pull_request, resolve_review_thread, review_threads
-from .library import LibraryError, domains, find_item, load_library, validate_library
+from .library import (
+    LibraryError,
+    domains,
+    find_workflow,
+    load_library,
+    load_workflows,
+    validate_library,
+)
 from .profiles import (
     ProjectProfile,
     capability_rows,
     default_profile,
-    gate_tools_declared,
     gate_install_command,
+    gate_tools_declared,
     install_gate_tools,
     language_tools,
     load_profile,
@@ -35,11 +40,12 @@ from .profiles import (
     prerequisites_ok,
 )
 
+
 class CodexOptionGroup(typer.core.TyperGroup):
     """Keep unknown root options for Codex while preserving normal subcommands."""
 
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        remaining = click.Command.parse_args(self, ctx, self._root_options_first(args))
+    def parse_args(self, ctx: typer._click.core.Context, args: list[str]) -> list[str]:
+        remaining = typer._click.core.Command.parse_args(self, ctx, self._root_options_first(args))
         if remaining and remaining[0].startswith("-"):
             ctx._protected_args = []
             ctx.args = remaining
@@ -60,9 +66,7 @@ class CodexOptionGroup(typer.core.TyperGroup):
                 root_options.extend((argument, args[index + 1]))
                 index += 2
                 continue
-            if argument.startswith("--workflow=") or argument.startswith("--target="):
-                root_options.append(argument)
-            elif argument == "--no-launch":
+            if argument.startswith(("--workflow=", "--target=")) or argument == "--no-launch":
                 root_options.append(argument)
             else:
                 codex_options.append(argument)
@@ -76,8 +80,12 @@ app = typer.Typer(
     invoke_without_command=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
-install_app = typer.Typer(help="Create a reviewed 172X project profile and install a host integration.")
-github_app = typer.Typer(help="Inspect guarded dev-loop pull-request gates and perform protected merges.")
+install_app = typer.Typer(
+    help="Create a reviewed 172X project profile and install a host integration."
+)
+github_app = typer.Typer(
+    help="Inspect guarded dev-loop pull-request gates and perform protected merges."
+)
 app.add_typer(install_app, name="install")
 app.add_typer(github_app, name="github")
 
@@ -117,7 +125,9 @@ def _install_profiled_codex(
 ) -> tuple[list[tuple[Action, Path, bytes]], tuple[str, ...]]:
     profile = _profile("codex", language, gate)
     plan = install_configured_codex(target, profile, dry_run=True, force=force)
-    tool_command = () if gate_tools_declared(target, profile) else gate_install_command(target, profile)
+    tool_command = (
+        () if gate_tools_declared(target, profile) else gate_install_command(target, profile)
+    )
     if dry_run:
         return plan, tool_command
     if tool_command:
@@ -188,7 +198,7 @@ def agents(
         str | None,
         typer.Option(
             "--workflow",
-            help="Select a bundled workflow.",
+            help="Select a bundled or project-owned workflow.",
             autocompletion=workflow_id_completions,
         ),
     ] = None,
@@ -216,7 +226,7 @@ def agents(
     if ctx.invoked_subcommand is not None:
         raise typer.BadParameter("--workflow cannot be combined with an agents subcommand")
     try:
-        find_item("workflows", workflow)
+        selected = find_workflow(_target(target), workflow)
         select_workflow(_target(target), workflow)
     except LibraryError as error:
         if "unknown workflow ID" in str(error):
@@ -226,20 +236,26 @@ def agents(
         if ctx.args:
             raise typer.BadParameter("Codex options cannot be combined with --no-launch")
         typer.echo(f"Active workflow: {workflow}")
-        typer.echo(f"In Codex, select 172X · {workflow_skill_title(workflow)} from /skills.")
+        typer.echo(
+            f"In Codex, select 172X · {selected.name.removesuffix(' Workflow')} from /skills."
+        )
         return
     try:
         launch_codex(_target(target), workflow, tuple(ctx.args))
     except FileNotFoundError as error:
         typer.echo(str(error), err=True)
         typer.echo(f"Active workflow: {workflow}")
-        typer.echo(f"In Codex, select 172X · {workflow_skill_title(workflow)} from /skills.")
+        typer.echo(
+            f"In Codex, select 172X · {selected.name.removesuffix(' Workflow')} from /skills."
+        )
         raise typer.Exit(1) from error
 
 
 @install_app.command("codex")
 def install_codex_command(
-    language: Annotated[str, typer.Argument(help="Programming language profile; Python is supported.")] = "python",
+    language: Annotated[
+        str, typer.Argument(help="Programming language profile; Python is supported.")
+    ] = "python",
     target: Annotated[
         Path | None,
         typer.Option(
@@ -259,7 +275,9 @@ def install_codex_command(
     ] = False,
     gate: Annotated[
         list[str] | None,
-        typer.Option("--gate", help="Repeat a supported gate tool ID; defaults to the Python profile."),
+        typer.Option(
+            "--gate", help="Repeat a supported gate tool ID; defaults to the Python profile."
+        ),
     ] = None,
 ) -> None:
     """Install Codex plus a committed Python/Git/GitHub 172X project profile."""
@@ -285,12 +303,15 @@ def install_codex_command(
     if dry_run:
         typer.echo("No files written.")
 
+
 @github_app.command("review-threads")
 def github_review_threads(
     pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
     target: Annotated[
         Path | None,
-        typer.Option("--target", help="GitHub repository directory.", file_okay=False, dir_okay=True),
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
     ] = None,
 ) -> None:
     """Print current GitHub review threads for an open pull request."""
@@ -307,7 +328,9 @@ def github_resolve_thread(
     thread_id: Annotated[str, typer.Argument(help="Unresolved GitHub review-thread node ID.")],
     target: Annotated[
         Path | None,
-        typer.Option("--target", help="GitHub repository directory.", file_okay=False, dir_okay=True),
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
     ] = None,
 ) -> None:
     """Resolve one independently verified GitHub review thread after repository opt-in."""
@@ -323,7 +346,9 @@ def github_gate(
     pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
     target: Annotated[
         Path | None,
-        typer.Option("--target", help="GitHub repository directory.", file_okay=False, dir_okay=True),
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
     ] = None,
 ) -> None:
     """Fail unless an opted-in PR currently meets every dev-loop merge gate."""
@@ -344,7 +369,9 @@ def github_merge(
     pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
     target: Annotated[
         Path | None,
-        typer.Option("--target", help="GitHub repository directory.", file_okay=False, dir_okay=True),
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
     ] = None,
 ) -> None:
     """Recheck the live gate, then make one protected merge request for the checked PR head."""
@@ -403,10 +430,24 @@ def capabilities() -> None:
 
 
 @app.command("workflows")
-def workflows() -> None:
-    """List bundled workflows."""
+def workflows(
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target",
+            help="Project whose custom workflows to include.",
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ] = None,
+) -> None:
+    """List bundled workflows and validated project-owned workflows."""
     typer.echo(f"{'ID':<22} {'NAME':<40} DESCRIPTION")
-    for workflow in load_library("workflows"):
+    try:
+        available = load_workflows(_target(target))
+    except LibraryError as error:
+        _operational_error(str(error))
+    for workflow in available:
         typer.echo(f"{workflow.id:<22} {workflow.name:<40} {workflow.description}")
 
 
@@ -415,14 +456,20 @@ def show(
     workflow_id: Annotated[
         str,
         typer.Argument(
-            help="Bundled workflow ID.",
+            help="Bundled or project-owned workflow ID.",
             autocompletion=workflow_id_completions,
         ),
     ],
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="Project whose workflow to show.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
 ) -> None:
-    """Show canonical workflow Markdown without frontmatter."""
+    """Show bundled or project-owned workflow Markdown without frontmatter."""
     try:
-        workflow = find_item("workflows", workflow_id)
+        workflow = find_workflow(_target(target), workflow_id)
     except LibraryError as error:
         raise typer.BadParameter(str(error), param_hint="WORKFLOW_ID") from error
     typer.echo(f"{workflow.name} ({workflow.id})\n{workflow.description}\n")

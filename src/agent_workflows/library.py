@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -29,6 +29,7 @@ class LibraryItem:
     version: int
     body: str
     source: str
+    relative_path: str = ""
 
 
 _KEYS = {"id", "name", "description", "version"}
@@ -121,10 +122,11 @@ def library_directory(kind: str) -> Traversable:
 
 def load_library(kind: str) -> list[LibraryItem]:
     """Load bundled items in deterministic ID order and reject duplicate IDs."""
+    root = library_directory(kind)
     items = [
-        parse_markdown(file)
-        for file in library_directory(kind).iterdir()
-        if file.name.endswith(".md")
+        replace(item, relative_path=relative.as_posix())
+        for relative, file in _markdown_files(root)
+        for item in [parse_markdown(file)]
     ]
     items.sort(key=lambda item: item.id)
     ids = [item.id for item in items]
@@ -134,12 +136,61 @@ def load_library(kind: str) -> list[LibraryItem]:
     return items
 
 
+def _markdown_files(
+    directory: Traversable, prefix: Path = Path()
+) -> list[tuple[Path, Traversable]]:
+    """Return canonical Markdown files recursively in a stable order."""
+    files: list[tuple[Path, Traversable]] = []
+    for child in sorted(directory.iterdir(), key=lambda entry: entry.name):
+        relative = prefix / child.name
+        if child.is_dir():
+            files.extend(_markdown_files(child, relative))
+        elif child.is_file() and child.name.endswith(".md"):
+            files.append((relative, child))
+    return files
+
+
 def find_item(kind: str, item_id: str) -> LibraryItem:
     for item in load_library(kind):
         if item.id == item_id:
             return item
     available = ", ".join(item.id for item in load_library(kind))
     raise LibraryError(f"unknown {kind[:-1]} ID {item_id!r}; available: {available}")
+
+
+def load_project_workflows(target: Path) -> list[LibraryItem]:
+    """Load project-owned workflow Markdown from the documented custom-workflow directory."""
+    directory = target.expanduser().resolve() / ".172x" / "workflows"
+    if not directory.exists():
+        return []
+    if not directory.is_dir() or directory.is_symlink():
+        raise LibraryError(f"project workflow directory must be a real directory: {directory}")
+    items = [
+        replace(item, relative_path=(Path("custom") / source.relative_to(directory)).as_posix())
+        for source in sorted(directory.rglob("*.md"))
+        if source.is_file() and not source.is_symlink()
+        for item in [parse_markdown(source)]
+    ]
+    return _unique_items("project workflows", items)
+
+
+def load_workflows(target: Path | None = None) -> list[LibraryItem]:
+    """Load bundled workflows plus validated project-owned workflows when a target is supplied."""
+    workflows = load_library("workflows")
+    if target is not None:
+        workflows.extend(load_project_workflows(target))
+    workflows = _unique_items("workflows", workflows)
+    _validate_workflow_references(workflows)
+    return workflows
+
+
+def find_workflow(target: Path, workflow_id: str) -> LibraryItem:
+    """Find one bundled or project-owned workflow by ID."""
+    for workflow in load_workflows(target):
+        if workflow.id == workflow_id:
+            return workflow
+    available = ", ".join(workflow.id for workflow in load_workflows(target))
+    raise LibraryError(f"unknown workflow ID {workflow_id!r}; available: {available}")
 
 
 def _required_sections(item: LibraryItem, sections: tuple[str, ...]) -> None:
@@ -155,8 +206,27 @@ def validate_library() -> tuple[list[LibraryItem], list[LibraryItem]]:
     for agent in agents:
         _required_sections(agent, _AGENT_SECTIONS)
         agent_domain(agent)
-    known_agents = {agent.id for agent in agents}
+    _validate_workflow_references(workflows)
+    return agents, workflows
+
+
+def _unique_items(kind: str, items: list[LibraryItem]) -> list[LibraryItem]:
+    items.sort(key=lambda item: item.id)
+    ids = [item.id for item in items]
+    if len(ids) != len(set(ids)):
+        duplicates = sorted({item_id for item_id in ids if ids.count(item_id) > 1})
+        raise LibraryError(f"{kind}: duplicate IDs: {', '.join(duplicates)}")
+    return items
+
+
+def _validate_workflow_references(workflows: list[LibraryItem]) -> None:
+    known_agents = {agent.id for agent in load_library("agents")}
+    reserved_skill_ids = known_agents | {"workflow-composer"}
     for workflow in workflows:
+        if workflow.id in reserved_skill_ids:
+            raise LibraryError(
+                f"{workflow.source}: workflow ID conflicts with a reserved 172X skill: {workflow.id}"
+            )
         _required_sections(workflow, _WORKFLOW_SECTIONS)
         participating = _section_text(workflow.body, "Participating agents")
         referenced = set(re.findall(r"`([a-z0-9-]+)`", participating))
@@ -165,7 +235,6 @@ def validate_library() -> tuple[list[LibraryItem], list[LibraryItem]]:
             raise LibraryError(
                 f"{workflow.source}: unknown participating agents: {', '.join(unknown)}"
             )
-    return agents, workflows
 
 
 def agent_domain(agent: LibraryItem) -> str:

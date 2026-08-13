@@ -11,30 +11,30 @@ Turn an idea into an implementation-ready or production-ready result while prese
 The idea, intended user, constraints, available repository context, and desired outcome.
 
 ## Participating agents
-- `discovery`
-- `market-research`
+- `discovery-specialist`
+- `market-researcher`
 - `technical-feasibility`
-- `product-specification`
-- `ux-ui-design`
-- `backend-architecture`
-- `frontend-implementation`
-- `backend-implementation`
-- `qa`
-- `frontend-review`
-- `backend-review`
-- `security-review`
-- `pr-review`
+- `product-specification-specialist`
+- `ux-ui-designer`
+- `principal-architect`
+- `frontend-engineer`
+- `backend-engineer`
+- `qa-engineer`
+- `frontend-reviewer`
+- `backend-reviewer`
+- `security-reviewer`
+- `pr-reviewer`
 
 ## Flow
-1. `discovery` produces a bounded problem statement.
-2. `market-research` and `technical-feasibility` investigate the discovery brief.
+1. `discovery-specialist` produces a bounded problem statement.
+2. `market-researcher` and `technical-feasibility` investigate the discovery brief.
 3. Stop for human validation: stop, revise, or proceed.
-4. `product-specification` defines scope and acceptance criteria.
-5. `ux-ui-design` and `backend-architecture` define compatible foundations and reconcile contracts.
-6. `frontend-implementation` and `backend-implementation` implement only after contracts are stable.
-7. `qa` verifies the integrated result.
-8. `frontend-review`, `backend-review`, and `security-review` evaluate QA-backed work.
-9. `pr-review` synthesizes a local recommendation, then stop for human approval.
+4. `product-specification-specialist` defines scope and acceptance criteria.
+5. `ux-ui-designer` and `principal-architect` define compatible foundations and reconcile contracts.
+6. `frontend-engineer` and `backend-engineer` implement only after contracts are stable.
+7. `qa-engineer` verifies the integrated result.
+8. `frontend-reviewer`, `backend-reviewer`, and `security-reviewer` evaluate QA-backed work.
+9. `pr-reviewer` synthesizes a local recommendation, then stop for human approval.
 
 ## Parallel work
 Market research and technical feasibility may run in parallel after discovery. UX/UI design and backend architecture may run in parallel before contract reconciliation. Frontend, backend, and security review may run in parallel after QA evidence exists.

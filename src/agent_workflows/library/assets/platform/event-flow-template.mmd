@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant Producer
+    participant Broker as Queue or topic
+    participant Consumer
+    participant Store as Owned data
+
+    Producer->>Broker: Publish event with idempotency key
+    Broker->>Consumer: Deliver event
+    Consumer->>Store: Apply change idempotently
+    Consumer-->>Broker: Acknowledge
+    Note over Consumer,Broker: Define retries, ordering, and failure queue behavior

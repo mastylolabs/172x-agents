@@ -11,7 +11,7 @@ agents install codex python
 agents --workflow dev
 ```
 
-The `dev` workflow coordinates independent Coding, QA, and PR Review agents and stops for a human merge decision.
+The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles and stops for a human merge decision.
 
 For a repository that deliberately opts in, `dev-loop` takes a task from brief through branch creation, engineering gates, PR creation, independent review, and a protected merge to `main`.
 

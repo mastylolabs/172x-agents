@@ -6,8 +6,8 @@ import pytest
 from agent_workflows.codex import (
     active_workflow,
     configured_integration_current,
-    install_configured_codex,
     install_codex,
+    install_configured_codex,
     managed_files,
     select_workflow,
 )
@@ -35,13 +35,33 @@ def test_install_generates_parseable_toml_and_is_idempotent(tmp_path: Path) -> N
         assert "\\n" not in path.read_text(encoding="utf-8")
     skill_paths = sorted((tmp_path / ".agents/skills").glob("172x-*/SKILL.md"))
     direct_skills = [path for path in skill_paths if path.parent.name != "172x-agents"]
-    workflow_skills = [path for path in direct_skills if path.parent.name in {"172x-dev", "172x-dev-loop", "172x-idea-to-build", "172x-idea-to-product"}]
-    assert len(direct_skills) == 20
+    workflow_skills = [
+        path
+        for path in direct_skills
+        if path.parent.name
+        in {"172x-dev", "172x-dev-loop", "172x-idea-to-build", "172x-idea-to-product"}
+    ]
+    assert len(direct_skills) == 21
     assert len(workflow_skills) == 4
-    assert (tmp_path / ".agents/skills/172x-brief/agents/openai.yaml").read_text(encoding="utf-8").startswith("interface:\n")
-    assert "references/agents/brief.md" in (tmp_path / ".agents/skills/172x-brief/SKILL.md").read_text(encoding="utf-8")
-    assert "Run the `dev-loop` workflow" in (tmp_path / ".agents/skills/172x-dev-loop/SKILL.md").read_text(encoding="utf-8")
-    assert (tmp_path / ".agents/skills/172x-agents/references/platform/architecture-patterns.md").is_file()
+    assert (
+        (tmp_path / ".agents/skills/172x-brief-author/agents/openai.yaml")
+        .read_text(encoding="utf-8")
+        .startswith("interface:\n")
+    )
+    brief_skill = (tmp_path / ".agents/skills/172x-brief-author/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "references/agents/product/brief-author.md" in brief_skill
+    assert "Resolve any `references/` or `assets/` path" in brief_skill
+    assert "Run the `dev-loop` workflow" in (
+        tmp_path / ".agents/skills/172x-dev-loop/SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert (
+        tmp_path / ".agents/skills/172x-agents/references/platform/architecture-patterns.md"
+    ).is_file()
+    assert (
+        tmp_path / ".agents/skills/172x-agents/assets/platform/system-context-template.mmd"
+    ).is_file()
 
 
 def test_dry_run_does_not_write(tmp_path: Path) -> None:
@@ -103,3 +123,80 @@ def test_configured_install_owns_profile_as_well_as_codex_files(tmp_path: Path) 
     assert not configured_integration_current(tmp_path)
     with pytest.raises(LibraryError, match="conflicts in managed paths.*172x.toml"):
         install_configured_codex(tmp_path, default_profile())
+
+
+def test_force_refresh_removes_renamed_managed_agent_files(tmp_path: Path) -> None:
+    legacy_skill = tmp_path / ".agents/skills/172x-brief/SKILL.md"
+    legacy_skill.parent.mkdir(parents=True)
+    legacy_skill.write_text("old managed skill\n", encoding="utf-8")
+    legacy_toml = tmp_path / ".codex/agents/172x-brief.toml"
+    legacy_toml.parent.mkdir(parents=True)
+    legacy_toml.write_text('name = "old"\n', encoding="utf-8")
+
+    with pytest.raises(LibraryError, match="172x-brief"):
+        install_codex(tmp_path)
+
+    install_codex(tmp_path, force=True)
+
+    assert not legacy_skill.exists()
+    assert not legacy_toml.exists()
+    assert (tmp_path / ".agents/skills/172x-brief-author/SKILL.md").is_file()
+
+
+def test_install_projects_a_valid_custom_workflow_as_a_native_skill(tmp_path: Path) -> None:
+    workflow = tmp_path / ".172x/workflows/customer-feedback.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        """---
+id: customer-feedback
+name: Customer Feedback Workflow
+description: Turns validated customer feedback into independently reviewed fixes.
+version: 1
+---
+## Purpose
+Turn validated feedback into a reviewable fix.
+
+## Inputs
+Customer feedback, repository context, and acceptance criteria.
+
+## Participating agents
+- `discovery-specialist`
+- `principal-engineer`
+- `qa-engineer`
+- `pr-reviewer`
+
+## Flow
+1. `discovery-specialist` bounds the reported problem.
+2. `principal-engineer` implements the agreed fix.
+3. `qa-engineer` verifies the acceptance criteria.
+4. `pr-reviewer` returns a local recommendation for the human.
+
+## Parallel work
+No work is parallel because each handoff is required.
+
+## Feedback loops
+QA or review evidence returns to `principal-engineer` at most twice.
+
+## Human gates
+The human approves proceeding after discovery and decides whether to merge.
+
+## Completion criteria
+The scope, implementation, QA evidence, review recommendation, and human decision exist.
+
+## Failure and escalation
+Stop for the human when feedback is ambiguous or two return cycles are exhausted.
+""",
+        encoding="utf-8",
+    )
+
+    install_codex(tmp_path)
+
+    skill = (tmp_path / ".agents/skills/172x-customer-feedback/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "# 172X · Customer Feedback" in skill
+    assert "references/workflows/custom/customer-feedback.md" in skill
+    assert (
+        tmp_path / ".agents/skills/172x-agents/references/workflows/custom/customer-feedback.md"
+    ).is_file()
+    assert (tmp_path / ".agents/skills/172x-workflow-composer/SKILL.md").is_file()

@@ -6,16 +6,17 @@
 
 ```text
 src/agent_workflows/library/
-├── agents/*.md
+├── agents/{product,design,platform,quality,security}/*.md
 ├── workflows/*.md
-├── references/platform/*.md
+├── references/{product,platform,quality,security}/*.md
+├── assets/{product,platform}/*.{md,mmd}
 ├── codex/SKILL.md
 └── profiles/languages/python.toml
 ```
 
-Agent and workflow Markdown is authoritative. The installer copies it into a project-scoped coordinator skill, generates one direct native skill for each agent and workflow, and generates native `.codex/agents/172x-*.toml` definitions for workflow delegation. Python does not parse arbitrary workflow graphs or execute steps.
+Bundled agent and workflow Markdown is authoritative. A project may additionally own canonical workflow Markdown at `.172x/workflows/`, authored through the Workflow Composer or directly in the same deliberately small format. The installer copies references into a project-scoped coordinator skill and generates one direct native skill for each bundled or validated project workflow; it generates native `.codex/agents/172x-*.toml` definitions for agent delegation. Python validates required sections and referenced role IDs, but does not parse arbitrary workflow graphs or execute steps.
 
-The direct skill catalog uses only domains with shipped roles: Product, Design, Platform, Quality, and Security. Shared references are concise decision aids—not a hidden second prompt library. For example, Backend Architecture and Design & Architecture Review consult the architecture-patterns reference only when a pattern choice is material.
+The direct skill catalog uses only domains with shipped roles: Product, Design, Platform, Quality, and Security. Shared references are concise decision aids—not a hidden second prompt library; assets are copyable deliverable templates. For example, Principal Architect consults architecture patterns and decision guidance only for material design work, then uses an ADR or Mermaid template when it clarifies a real decision.
 
 Every agent has a scalar frontmatter header and operational sections for mission, inputs, process, deliverables, evidence, handoff, and boundaries. Every workflow describes its purpose, inputs, participants, flow, feedback loops, human gates, completion criteria, and escalation behavior.
 
@@ -37,13 +38,13 @@ Gates are selected tool IDs from the Python profile. Each maps to a safe argumen
 
 ```text
 Task
-  → Brief
+  → Brief Author
   → clean-workspace normalization
   → new branch in the current checkout
-  → Coding
+  → Principal Engineer
   → selected engineering gate (repeat until pass)
   → commit / push / GitHub pull request
-  → independent QA and review
+  → independent QA Engineer and review
   → address MF / answer Q / explain any declined NH
   → independent approval (at most two review returns)
   → live GitHub gate
