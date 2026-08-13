@@ -13,7 +13,7 @@ agents --workflow dev
 
 The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles and stops for a human merge decision.
 
-For a repository that deliberately opts in, `dev-loop` takes a task from brief through branch creation, engineering gates, PR creation, independent review, and a protected merge to `main`.
+For a repository that deliberately opts in, `dev-loop` takes a task from brief through branch creation, engineering gates, PR creation, independent review, and a guarded merge to `main`.
 
 ## Build from a documented vision
 

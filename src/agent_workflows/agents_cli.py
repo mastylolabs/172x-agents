@@ -84,7 +84,7 @@ install_app = typer.Typer(
     help="Create a reviewed 172X project profile and install a host integration."
 )
 github_app = typer.Typer(
-    help="Inspect guarded dev-loop pull-request gates and perform protected merges."
+    help="Inspect guarded dev-loop pull-request gates and perform guarded merges."
 )
 app.add_typer(install_app, name="install")
 app.add_typer(github_app, name="github")
@@ -371,7 +371,7 @@ def github_gate(
     typer.echo(f"URL: {gate.url}")
     typer.echo(f"Base branch: {gate.policy.base_branch}")
     typer.echo(f"Merge method: {gate.policy.merge_method}")
-    typer.echo(f"GitHub checks: {gate.passing_checks} passed")
+    typer.echo(f"GitHub checks: {gate.reported_checks} reported, all passing")
     typer.echo(f"GitHub review threads: {gate.resolved_threads} resolved, 0 unresolved")
 
 
@@ -385,7 +385,7 @@ def github_merge(
         ),
     ] = None,
 ) -> None:
-    """Recheck the live gate, then make one protected merge request for the checked PR head."""
+    """Recheck the live gate, then make one guarded merge request for the checked PR head."""
     try:
         gate, merged = merge_pull_request(_target(target), pr_number)
     except LibraryError as error:

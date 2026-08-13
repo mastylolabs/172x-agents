@@ -53,7 +53,7 @@ Task
 
 The workflow calls the review unit a *change request* so later providers can translate it. The supported GitHub adapter operates on pull requests. It never receives a pull-request number from the user; it obtains that from its own GitHub action.
 
-The guard verifies a current GitHub approval, clean state, passing GitHub checks, resolved threads, target branch, and checked head commit immediately before merge. Codex never approves its own work. If branch rules require a second eligible GitHub identity, the repository must already provide it; `doctor` reports this as a required check.
+The guard verifies a current GitHub approval, clean state, every reported GitHub check passing, resolved threads, target branch, and checked head commit immediately before merge. A repository with no reported GitHub checks is valid; its configured local engineering gate remains the workflow evidence. 172X never creates, changes, weakens, or bypasses repository branch rules. Codex never approves its own work. If branch rules require a second eligible GitHub identity, the repository must already provide it; `doctor` reports this as a required check.
 
 There is no hidden run database. Safe recovery comes from visible artifacts: the branch, change request, brief, gate output, and review comments. A new Codex session inspects those artifacts and resumes only from verified state.
 

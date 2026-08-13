@@ -74,7 +74,7 @@ class MergeGate:
     url: str
     head_oid: str
     policy: MergePolicy
-    passing_checks: int
+    reported_checks: int
     resolved_threads: int
 
 
@@ -249,8 +249,10 @@ def merge_gate(target: Path, pr_number: int) -> MergeGate:
     if pull_request.get("reviewDecision") != "APPROVED":
         raise LibraryError("pull request does not have GitHub's APPROVED review decision")
     checks = pull_request.get("statusCheckRollup")
-    if not isinstance(checks, list) or not checks:
-        raise LibraryError("pull request has no reported GitHub checks; refusing autonomous merge")
+    if checks is None:
+        checks = []
+    if not isinstance(checks, list):
+        raise LibraryError("GitHub returned invalid check data; cannot evaluate the merge gate.")
     failed_checks: list[str] = []
     pending_checks: list[str] = []
     for check in checks:
@@ -276,7 +278,7 @@ def merge_gate(target: Path, pr_number: int) -> MergeGate:
         url=_required_string(pull_request.get("url"), "pull request URL"),
         head_oid=_required_string(pull_request.get("headRefOid"), "pull request head commit"),
         policy=policy,
-        passing_checks=len(checks),
+        reported_checks=len(checks),
         resolved_threads=len(threads),
     )
 
@@ -318,7 +320,7 @@ def resolve_review_thread(target: Path, pr_number: int, thread_id: str) -> None:
 
 
 def merge_pull_request(target: Path, pr_number: int) -> tuple[MergeGate, bool]:
-    """Run the live gate, then make one protected GitHub merge request for the checked head."""
+    """Run the live gate, then make one guarded GitHub merge request for the checked head."""
     project = _project_directory(target)
     gate = merge_gate(project, pr_number)
     _run_gh(

@@ -204,7 +204,7 @@ def test_workflow_completion_is_bounded_and_descriptive() -> None:
         ("dev", "Coding, independent QA, and PR review with a human merge decision."),
         (
             "dev-loop",
-            "Experimental brief-to-branch development, independent review, and protected merge to main.",
+            "Experimental brief-to-branch development, independent review, and guarded merge to main.",
         ),
     ]
     assert workflow_id_completions("IDEA") == [
@@ -236,7 +236,7 @@ def test_guarded_github_commands_are_exposed_without_running_a_real_merge(
         url="https://github.com/172x/example/pull/17",
         head_oid="abc123",
         policy=MergePolicy(base_branch="main", merge_method="squash", merge_current_branch=True),
-        passing_checks=2,
+        reported_checks=2,
         resolved_threads=3,
     )
     monkeypatch.setattr(agents_cli, "merge_gate", lambda target, number: gate)
@@ -247,7 +247,7 @@ def test_guarded_github_commands_are_exposed_without_running_a_real_merge(
 
     assert checked.exit_code == 0
     assert "eligible for dev-loop merge" in checked.output
-    assert "GitHub checks: 2 passed" in checked.output
+    assert "GitHub checks: 2 reported, all passing" in checked.output
     assert merged.exit_code == 0
     assert "Merged PR #17 into main" in merged.output
 

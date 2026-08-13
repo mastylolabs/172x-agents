@@ -143,7 +143,7 @@ def test_merge_gate_requires_live_github_evidence(monkeypatch, tmp_path: Path) -
     gate = merge_gate(tmp_path, 17)
 
     assert gate.pr_number == 17
-    assert gate.passing_checks == 1
+    assert gate.reported_checks == 1
     assert gate.resolved_threads == 1
     assert ["gh", "auth", "status"] in calls
     assert [
@@ -168,6 +168,20 @@ def test_merge_gate_rejects_non_passing_checks_without_merge(monkeypatch, tmp_pa
         merge_pull_request(tmp_path, 17)
 
     assert not any(command[1:3] == ["pr", "merge"] for command in calls)
+
+
+@pytest.mark.parametrize("checks", [[], None])
+def test_merge_gate_allows_a_repository_with_no_reported_checks(
+    monkeypatch, tmp_path: Path, checks: list[dict[str, object]] | None
+) -> None:
+    _enable_dev_loop(tmp_path)
+    pull_request = _pr_json(checks=[])
+    pull_request["statusCheckRollup"] = checks
+    _mock_gh(monkeypatch, pr=pull_request, threads=_thread_response())
+
+    gate = merge_gate(tmp_path, 17)
+
+    assert gate.reported_checks == 0
 
 
 def test_merge_rechecks_gate_and_pins_checked_head_without_bypass(

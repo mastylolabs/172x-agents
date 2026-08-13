@@ -123,7 +123,7 @@ agents github gate PR_NUMBER
 agents github merge PR_NUMBER
 ```
 
-The first command is read-only. The last two use the selected GitHub profile and fail closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's `APPROVED` decision, has reported all-passing checks, and has no unresolved review threads. `merge` repeats that gate, pins the reviewed head commit, and uses only the configured normal merge method; it never sends `--admin` or `--auto`. A merge-queue acceptance is pending until GitHub reports the merged state.
+The first command is read-only. The last two use the selected GitHub profile and fail closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's `APPROVED` decision, has no failing or pending reported checks, and has no unresolved review threads. A repository with no reported GitHub checks is valid. `merge` repeats that gate, pins the reviewed head commit, and uses only the configured normal merge method; it never sends `--admin` or `--auto`, and never creates, changes, weakens, or bypasses repository branch rules. A merge-queue acceptance is pending until GitHub reports the merged state.
 
 `resolve-thread` is a narrow GitHub write: it verifies that the thread belongs to the named pull request. The workflow allows it only after independent review has verified the exact fix.
 
