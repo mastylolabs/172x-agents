@@ -72,6 +72,46 @@ def test_dry_run_does_not_write(tmp_path: Path) -> None:
     assert not (tmp_path / ".codex").exists()
 
 
+def test_focused_install_includes_only_selected_agent_and_shared_support(tmp_path: Path) -> None:
+    install_configured_codex(tmp_path, default_profile(), only=("principal-architect",))
+
+    assert (tmp_path / ".codex/agents/172x-principal-architect.toml").is_file()
+    assert not (tmp_path / ".codex/agents/172x-backend-engineer.toml").exists()
+    assert (tmp_path / ".agents/skills/172x-principal-architect/SKILL.md").is_file()
+    assert not (tmp_path / ".agents/skills/172x-backend-engineer").exists()
+    assert not (tmp_path / ".agents/skills/172x-workflow-composer").exists()
+    assert (
+        tmp_path / ".agents/skills/172x-agents/references/agents/platform/principal-architect.md"
+    ).is_file()
+    assert (
+        tmp_path / ".agents/skills/172x-agents/assets/platform/architecture-template.md"
+    ).is_file()
+
+
+def test_focused_workflow_install_includes_its_declared_roles(tmp_path: Path) -> None:
+    install_configured_codex(tmp_path, default_profile(), only=("dev-loop",))
+
+    for agent_id in ("brief-author", "principal-engineer", "qa-engineer", "pr-reviewer"):
+        assert (tmp_path / ".codex/agents" / f"172x-{agent_id}.toml").is_file()
+    assert (tmp_path / ".agents/skills/172x-dev-loop/SKILL.md").is_file()
+    assert not (tmp_path / ".codex/agents/172x-security-reviewer.toml").exists()
+
+
+def test_focused_workflow_install_can_select_its_workflow(tmp_path: Path) -> None:
+    install_configured_codex(tmp_path, default_profile(), only=("dev-loop",))
+
+    path = select_workflow(tmp_path, "dev-loop")
+
+    assert path.read_text(encoding="utf-8") == "dev-loop\n"
+    with pytest.raises(LibraryError, match="agents install codex"):
+        select_workflow(tmp_path, "dev")
+
+
+def test_focused_install_rejects_unknown_capability(tmp_path: Path) -> None:
+    with pytest.raises(LibraryError, match="unknown 172X capability ID: missing"):
+        install_configured_codex(tmp_path, default_profile(), only=("missing",))
+
+
 def test_conflicts_are_all_or_nothing_and_force_is_managed_only(tmp_path: Path) -> None:
     conflicting = tmp_path / ".agents/skills/172x-agents/SKILL.md"
     conflicting.parent.mkdir(parents=True)

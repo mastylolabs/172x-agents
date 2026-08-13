@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a focused improvement to the 172X library, CLI, documentation, or Forge.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposals should solve a concrete user problem and respect 172X's Markdown-first, host-coordinated boundaries.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who has the problem, and what happens today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe the smallest useful change, not a broad future platform.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Agent library
+        - Workflow library
+        - Codex installation or CLI
+        - Documentation
+        - Forge catalog
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include relevant current workarounds or existing features.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable outcome would make this complete?

@@ -12,6 +12,13 @@ Repository: `mastylolabs/172x-agents`
 
 Documentation site: `agents.172x.ai`
 
+## Community and security
+
+172X Agents is distributed under the [MIT License](LICENSE.md). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance, follow the
+[Code of Conduct](CODE_OF_CONDUCT.md) in community spaces, and report vulnerabilities privately
+under the [Security Policy](SECURITY.md). Brand usage is described in [TRADEMARKS.md](TRADEMARKS.md).
+
 The docs dependency intentionally stays on MkDocs 1.x for now: the current Material site uses the MkDocs 1.x theme/plugin model, while MkDocs 2.0 is not a compatible upgrade path. We validate the site with strict builds and will make a deliberate migration decision rather than silently accepting a breaking major release.
 
 ## Product principle
@@ -163,6 +170,17 @@ Install the project-scoped Codex integration:
 ```bash
 agents install codex
 ```
+
+Install only the 172X capabilities this project needs:
+
+```bash
+agents install codex python --only principal-architect --only principal-engineer
+agents install codex python --only dev-loop
+```
+
+Each selected workflow installs its declared specialist roles. A selected specialist includes the
+shared references and templates it needs, while the default command continues to install the complete
+official library.
 
 Or let the guided installer ask for the supported choices:
 

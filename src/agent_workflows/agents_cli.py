@@ -122,9 +122,10 @@ def _install_profiled_codex(
     gate: tuple[str, ...],
     dry_run: bool,
     force: bool,
+    only: tuple[str, ...] = (),
 ) -> tuple[list[tuple[Action, Path, bytes]], tuple[str, ...]]:
     profile = _profile("codex", language, gate)
-    plan = install_configured_codex(target, profile, dry_run=True, force=force)
+    plan = install_configured_codex(target, profile, dry_run=True, force=force, only=only)
     tool_command = (
         () if gate_tools_declared(target, profile) else gate_install_command(target, profile)
     )
@@ -134,7 +135,10 @@ def _install_profiled_codex(
         typer.echo(f"Installing selected gate tools: {' '.join(tool_command)}")
         install_gate_tools(target, profile)
     _check_profile_prerequisites(target, profile)
-    return install_configured_codex(target, profile, dry_run=False, force=force), tool_command
+    return (
+        install_configured_codex(target, profile, dry_run=False, force=force, only=only),
+        tool_command,
+    )
 
 
 def workflow_id_completions(incomplete: str) -> list[tuple[str, str]]:
@@ -279,8 +283,15 @@ def install_codex_command(
             "--gate", help="Repeat a supported gate tool ID; defaults to the Python profile."
         ),
     ] = None,
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Repeat a bundled agent or workflow ID to install only those capabilities.",
+        ),
+    ] = None,
 ) -> None:
-    """Install Codex plus a committed Python/Git/GitHub 172X project profile."""
+    """Install all, or selected, Codex capabilities with a committed project profile."""
     try:
         selected_gate = tuple(gate or ())
         if not selected_gate:
@@ -292,7 +303,7 @@ def install_codex_command(
                 tool.strip().casefold() for tool in tools_text.split(",") if tool.strip()
             )
         plan, tool_command = _install_profiled_codex(
-            _target(target), language.casefold(), selected_gate, dry_run, force
+            _target(target), language.casefold(), selected_gate, dry_run, force, tuple(only or ())
         )
     except LibraryError as error:
         _operational_error(str(error))

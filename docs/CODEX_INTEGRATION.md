@@ -2,6 +2,15 @@
 
 `agents install codex python` installs a project-scoped coordinator skill, direct native skills for every workflow and specialist, and native custom agents from the canonical Markdown library. It also writes the reviewed, committed `172x.toml` project profile. It does not install Codex, authenticate it, edit `.codex/config.toml`, or write credentials.
 
+For a focused project installation, repeat `--only` with canonical agent or workflow IDs. A selected
+workflow includes its documented participating roles; a selected specialist includes its shared support
+material:
+
+```bash
+agents install codex python --only principal-architect
+agents install codex python --only dev-loop
+```
+
 When refreshing an installation created before the role-name update, run `agents install codex python --force`. The explicit force refresh replaces changed managed files and removes only the known old generated specialist files, so `/skills` shows the current role catalog without stale entries.
 
 ```text

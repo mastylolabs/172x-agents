@@ -18,6 +18,8 @@ htmlcov/
 build/
 dist/
 site/
+node_modules/
+forge/src/data/catalog.generated.json
 *.egg-info/
 *.egg
 *.whl

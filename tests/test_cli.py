@@ -286,6 +286,36 @@ def test_profiled_codex_install_writes_reviewed_project_config(monkeypatch, tmp_
     assert 'id = "github"' in profile
 
 
+def test_profiled_codex_install_accepts_repeatable_focused_capabilities(
+    monkeypatch, tmp_path: Path
+) -> None:
+    app = create_app()
+    monkeypatch.setattr(agents_cli, "_check_profile_prerequisites", lambda target, profile: None)
+    monkeypatch.setattr(agents_cli, "gate_install_command", lambda target, profile: ())
+
+    result = runner.invoke(
+        app,
+        [
+            "install",
+            "codex",
+            "python",
+            "--gate",
+            "pytest",
+            "--only",
+            "principal-architect",
+            "--only",
+            "principal-engineer",
+            "--target",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / ".codex/agents/172x-principal-architect.toml").is_file()
+    assert (tmp_path / ".codex/agents/172x-principal-engineer.toml").is_file()
+    assert not (tmp_path / ".codex/agents/172x-qa-engineer.toml").exists()
+
+
 def test_profiled_install_rejects_planned_capabilities_and_lists_statuses(
     monkeypatch, tmp_path: Path
 ) -> None:

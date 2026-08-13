@@ -8,7 +8,7 @@ The CLI installs and diagnoses integrations; Codex coordinates workflow steps. I
 
 ```text
 agents install
-agents install codex [python] [--gate TOOL]...
+agents install codex [python] [--gate TOOL]... [--only CAPABILITY_ID]...
 ```
 
 Bare `agents install` asks the same questions interactively. `agents install codex python` also asks which gate tools to install unless `--gate TOOL` is repeated explicitly. The default is all supported Python tools. The only selectable implementation is:
@@ -22,6 +22,21 @@ Bare `agents install` asks the same questions interactively. `agents install cod
 | Platform | macOS | Linux, Windows |
 
 `agents capabilities` prints this status from the program. It never presents a planned capability as installed.
+
+### Focused installation
+
+Use repeatable `--only` values to install one or more bundled agent or workflow IDs:
+
+```bash
+agents install codex python --only principal-architect
+agents install codex python --only principal-architect --only principal-engineer
+agents install codex python --only dev-loop
+```
+
+The selected capability receives the required shared references, assets, and generated Codex files. A
+selected workflow also receives its documented participating roles. Focused installation is additive:
+existing managed capabilities remain unless a separate explicit managed refresh replaces them. Omit
+`--only` to install the complete official 172X library.
 
 The installer writes canonical Codex files plus the committed `172x.toml` profile. It is idempotent, supports `--target`, `--dry-run`, and `--force`, preserves unrelated content, and plans all owned-file writes before writing any of them. A changed `172x.toml` is a managed-file conflict and requires explicit `--force`.
 
