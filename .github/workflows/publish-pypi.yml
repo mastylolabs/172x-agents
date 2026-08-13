@@ -1,0 +1,147 @@
+name: Publish 172X Agents to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact 172x-agents version from pyproject.toml to publish
+        required: true
+        type: string
+      confirmation:
+        description: Type "PUBLISH 172x-agents" to authorize this release request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-publish
+  cancel-in-progress: false
+
+jobs:
+  authorize-release-request:
+    name: Authorize release request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main and explicit confirmation
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main" || {
+            echo "PyPI publishing may be requested only from main." >&2
+            exit 1
+          }
+          test "$RELEASE_CONFIRMATION" = "PUBLISH 172x-agents" || {
+            echo "Confirmation must be exactly: PUBLISH 172x-agents" >&2
+            exit 1
+          }
+          test -n "$RELEASE_VERSION" || {
+            echo "A release version is required." >&2
+            exit 1
+          }
+
+  verify-and-build:
+    name: Verify and build release distributions
+    needs: authorize-release-request
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.8.18"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: forge/package-lock.json
+
+      - name: Require the requested package version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          metadata = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          actual = metadata["project"]["version"]
+          expected = os.environ["RELEASE_VERSION"]
+          if actual != expected:
+              raise SystemExit(
+                  f"Requested version {expected!r} does not match pyproject.toml version {actual!r}."
+              )
+          PY
+
+      - name: Install Python dependencies from the lockfile
+        run: uv sync --all-extras --frozen
+
+      - name: Check Python formatting and quality
+        run: |
+          uv run ruff format --check src tests scripts
+          uv run ruff check .
+          uv run mypy
+          uv run pytest
+
+      - name: Build strict documentation
+        run: uv run mkdocs build --strict
+
+      - name: Build Forge
+        working-directory: forge
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Python distributions
+        run: uv build
+
+      - name: Verify isolated wheel installation
+        shell: bash
+        run: |
+          package_venv="$(mktemp -d)/venv"
+          uv venv --python 3.12 "$package_venv"
+          uv pip install --python "$package_venv/bin/python" dist/*.whl
+          "$package_venv/bin/agents" --help
+          "$package_venv/bin/172x-agents" --help
+
+      - name: Upload release distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish verified distributions to PyPI
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/172x-agents/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download verified distributions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-distributions
+          path: dist
+
+      - name: Publish distributions through PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1.14
+        with:
+          packages-dir: dist/

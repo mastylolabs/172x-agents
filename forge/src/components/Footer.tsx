@@ -43,7 +43,15 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-[13px] text-muted-foreground sm:flex-row sm:items-center">
-          <p>© 2026 172X · Open source · Human-in-the-loop by design.</p>
+          <p>
+            © 2026{' '}
+            <a
+              href="https://mastylolabs.com"
+              className="transition-colors hover:text-primary"
+            >
+              Mastylo Labs LLC
+            </a>
+          </p>
           <p className="font-mono text-[12px]">
             Supported now: Codex · Python · Git · GitHub · macOS
           </p>

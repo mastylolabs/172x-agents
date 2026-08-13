@@ -3,6 +3,7 @@ site_description: Open-source, composable AI-agent workflows from idea discovery
 site_url: https://agents.172x.ai/
 repo_name: mastylolabs/172x-agents
 repo_url: https://github.com/mastylolabs/172x-agents
+copyright: © 2026 Mastylo Labs LLC · 172X Agents is an open-source Mastylo Labs product
 
 theme:
   name: material

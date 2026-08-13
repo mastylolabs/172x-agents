@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify package, documentation, and Forge
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.8.18"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: forge/package-lock.json
+
+      - name: Install Python dependencies from the lockfile
+        run: uv sync --all-extras --frozen
+
+      - name: Check Python formatting
+        run: uv run ruff format --check src tests scripts
+
+      - name: Lint Python
+        run: uv run ruff check .
+
+      - name: Type-check Python
+        run: uv run mypy
+
+      - name: Test Python
+        run: uv run pytest
+
+      - name: Build strict documentation
+        run: uv run mkdocs build --strict
+
+      - name: Build Forge
+        working-directory: forge
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Python distributions
+        run: uv build
+
+      - name: Verify isolated wheel installation
+        shell: bash
+        run: |
+          package_venv="$(mktemp -d)/venv"
+          uv venv --python 3.12 "$package_venv"
+          uv pip install --python "$package_venv/bin/python" dist/*.whl
+          "$package_venv/bin/agents" --help
+          "$package_venv/bin/172x-agents" --help
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: distributions-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

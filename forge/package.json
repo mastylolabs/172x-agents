@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "catalog": "uv run python ../scripts/generate_forge_catalog.py",
+    "catalog": "python ../scripts/generate_forge_catalog.py",
     "dev": "npm run catalog && vite --host 0.0.0.0",
     "build": "npm run catalog && vite build",
     "preview": "vite preview",

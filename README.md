@@ -18,6 +18,8 @@ Documentation site: `agents.172x.ai`
 [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance, follow the
 [Code of Conduct](CODE_OF_CONDUCT.md) in community spaces, and report vulnerabilities privately
 under the [Security Policy](SECURITY.md). Brand usage is described in [TRADEMARKS.md](TRADEMARKS.md).
+Maintainers use the manual, approval-gated [release procedure](RELEASING.md); merges to `main` never
+publish to PyPI.
 
 The docs dependency intentionally stays on MkDocs 1.x for now: the current Material site uses the MkDocs 1.x theme/plugin model, while MkDocs 2.0 is not a compatible upgrade path. We validate the site with strict builds and will make a deliberate migration decision rather than silently accepting a breaking major release.
 
