@@ -10,8 +10,6 @@ Before implementation, read these files in order:
 2. `docs/ARCHITECTURE.md`
 3. `docs/CLI.md`
 4. `docs/CODEX_INTEGRATION.md`
-5. `docs/WEBSITE.md`
-6. `CODEX_BUILD_PROMPT.md`
 
 If documents disagree, use the narrowest v0.1 interpretation and report the conflict before expanding scope.
 

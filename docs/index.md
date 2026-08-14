@@ -1,19 +1,27 @@
 # 172X Agents
 
-Open-source, composable AI-agent workflows—from idea discovery and architecture to coding, QA, PR review, and release.
+Markdown-first, composable AI-agent workflows for Codex.
 
 172X Agents gives Codex a focused library of specialist roles and workflow playbooks. The host runs the agents; 172X defines how they collaborate.
 
 ## Start small
 
 ```bash
+pipx install "git+https://github.com/mastylolabs/172x-agents.git"
 agents install codex python
 agents --workflow dev
 ```
 
-The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles and stops for a human merge decision.
+The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles,
+then stops for a human merge decision.
 
-For a repository that deliberately opts in, `dev-loop` takes a task from brief through branch creation, engineering gates, PR creation, independent review, and a guarded merge to `main`.
+The only supported profile today is Codex + Python + Git + GitHub on macOS. The canonical library is
+host-neutral, but Claude, Gemini, Rust, other languages, Linux, and Windows are planned—not
+selectable.
+
+For a repository that deliberately opts in, `dev-loop` takes a task through branch creation,
+engineering gates, pull-request creation, independent review, and a guarded merge path. It remains
+experimental; see [experimental status](DEV_LOOP_VALIDATION.md) before using it.
 
 ## Build from a documented vision
 
@@ -35,4 +43,5 @@ Use the complete workflow or create a smaller Markdown workflow containing only 
 - Optional `172x agents` ecosystem integration
 - No workflow server, database, or bundled MCP service
 
-[Get started](getting-started.md), browse the [agent catalog](agents.md), or read the [architecture](ARCHITECTURE.md).
+[Get started](getting-started.md), browse the [agent catalog](agents.md), or read the
+[architecture](ARCHITECTURE.md).

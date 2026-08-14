@@ -1,18 +1,22 @@
-# Dev-loop validation status
+# Experimental status: `dev-loop`
 
 `dev-loop` is experimental. It is a Codex-coordinated Markdown workflow, not a deterministic workflow engine.
 
-## Observed playground result — 2026-08-12
+## Observed limitation — 2026-08-12
 
-The `172x-playground` private GitHub test passed environment diagnostics and successfully completed these steps:
+An internal GitHub playground run passed environment diagnostics and successfully completed these
+steps:
 
 - created the feature branch, `feature/add-greet`;
 - implemented and committed the greeting task;
-- pushed the branch and opened GitHub pull request #1.
+- pushed the branch and opened a GitHub pull request.
 
-The host then dispatched `brief` twice and later dispatched `qa` twice, followed by repeated waits without a completed handoff. This is direct evidence that the current prompt-only coordinator does not yet guarantee exactly-once delegation or reliable bounded completion.
+The host then dispatched `brief` twice and later dispatched `qa` twice, followed by repeated waits
+without a completed handoff. This is direct evidence that the current prompt-only coordinator does
+not yet guarantee exactly-once delegation or reliable bounded completion.
 
-The run must be stopped before treating QA/review evidence as trustworthy. No merge occurred. The visible recovery artifacts—the branch, commit, and pull request—remain available for inspection.
+The run was stopped before treating QA or review evidence as trustworthy. No merge occurred. The
+visible recovery artifacts—the branch, commit, and pull request—remained available for inspection.
 
 ## Current rule
 
