@@ -1,7 +1,24 @@
 # Releasing 172X Agents
 
-This repository never publishes to PyPI on a pull request or a merge to `main`. Publishing is a
-maintainer-controlled, manual action.
+The primary distribution is a standalone executable published through GitHub Releases and mirrored
+to Cloudflare R2 at `agents.172x.ai`. PyPI remains an optional, maintainer-controlled compatibility
+channel and is never published on a pull request or a merge to `main`.
+
+## Primary standalone release
+
+1. Change the project version in `pyproject.toml` and refresh `uv.lock` when needed.
+2. Merge the version change to `main` after local and GitHub checks pass.
+3. Create and push an annotated `vMAJOR.MINOR.PATCH` tag.
+4. Let `release.yml` build the macOS, Linux, and Windows executables, generate deterministic
+   archives, checksums, and `manifest.json`, and publish the GitHub Release.
+5. Upload the exact generated release files to the `172x-agents-releases` R2 bucket under
+   `releases/<version>/` and the tagged `install.sh`/`install.ps1` files to the bucket root, using
+   a scoped Cloudflare credential and Wrangler's `--remote` flag.
+6. Verify every GitHub asset and `https://agents.172x.ai/releases/<version>/` object has the same
+   checksum before announcing the release.
+
+Do not place Cloudflare credentials in GitHub source, release assets, or installer scripts. Do not
+use the mutable `r2.dev` development URL for production installation.
 
 ## One-time PyPI and GitHub setup
 

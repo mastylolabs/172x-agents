@@ -2,7 +2,12 @@
 
 `agents` and `172x-agents` expose the same small command group. The optional, separately installed root CLI may load it as `172x agents`.
 
-The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an agent runtime, track runs, call model APIs, or store credentials.
+The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an
+agent runtime, track runs, call model APIs, or store credentials.
+
+The CLI is distributed to end users as a standalone executable through the pinned installers in
+[Distribution](DISTRIBUTION.md). Python is used to develop and build the source package, not as a
+runtime prerequisite for a user installing 172X Agents.
 
 ## Supported profile
 

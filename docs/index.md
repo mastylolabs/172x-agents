@@ -7,8 +7,9 @@ Markdown-first, composable AI-agent workflows for Codex.
 ## Start small
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
-agents install codex python
+curl --fail --location --remote-name https://agents.172x.ai/install.sh
+sh install.sh --version v0.1.0
+agents install codex
 agents --workflow dev
 ```
 

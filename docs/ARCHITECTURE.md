@@ -1,6 +1,8 @@
 # Architecture
 
-172X Agents is a Markdown-first library, not an agent runtime. Codex is the coordinator and executor; the Python package only installs canonical content, validates a deliberately small project profile, selects a workflow, performs diagnostics, and provides narrow guarded GitHub helpers for `dev-loop`.
+172X Agents is a Markdown-first library, not an agent runtime. Codex is the coordinator and executor;
+the CLI source is Python for maintainability, but end users receive a standalone platform executable
+that installs canonical content without requiring Python.
 
 ## Canonical content
 
@@ -19,6 +21,17 @@ Bundled agent and workflow Markdown is authoritative. A project may additionally
 The direct skill catalog uses only domains with shipped roles: Product, Design, Platform, Quality, and Security. Shared references are concise decision aids—not a hidden second prompt library; assets are copyable deliverable templates. For example, Principal Architect consults architecture patterns and decision guidance only for material design work, then uses an ADR or Mermaid template when it clarifies a real decision.
 
 Every agent has a scalar frontmatter header and operational sections for mission, inputs, process, deliverables, evidence, handoff, and boundaries. Every workflow describes its purpose, inputs, participants, flow, feedback loops, human gates, completion criteria, and escalation behavior.
+
+## Distribution boundary
+
+GitHub Releases are the source of record for standalone executables. Each release contains
+deterministic platform archives, per-archive SHA-256 files, an aggregate `SHA256SUMS`, and a
+versioned `manifest.json`. Cloudflare R2 mirrors the same immutable bytes behind the custom domain
+`agents.172x.ai`; the installer verifies the checksum before writing an executable.
+
+The build environment may use Python and PyInstaller, but those are release-build dependencies only.
+The installed `agents` executable contains the CLI and packaged canonical library. Project language
+gates remain a separate local activation concern and are never inferred from the installer runtime.
 
 ## Project profile and capabilities
 
@@ -59,4 +72,8 @@ There is no hidden run database. Safe recovery comes from visible artifacts: the
 
 ## Boundaries
 
-172X does not add a workflow engine, database, scheduler, provider API client, generic host abstraction, plugin marketplace, hosted service, credentials, telemetry, or a background process. The local GitHub gate uses `gh` with argument lists and `shell=False`; it does not use administrator bypass or auto-merge.
+172X does not add a workflow engine, database, scheduler, provider API client, generic host abstraction,
+hosted application, credentials, telemetry, or a background process. Versioned standalone release
+artifacts and a manually verified Cloudflare mirror are allowed distribution surfaces; the repository
+does not store Cloudflare credentials or deploy as a side effect of a normal build. The local GitHub
+gate uses `gh` with argument lists and `shell=False`; it does not use administrator bypass or auto-merge.

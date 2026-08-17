@@ -2,14 +2,22 @@
 
 ## Install the CLI
 
-For normal use, install the current GitHub source with `pipx`:
+Install the standalone CLI from a pinned release; Python is not required on the user's machine:
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
+curl --fail --location --remote-name https://agents.172x.ai/install.sh
+sh install.sh --version v0.1.0
 ```
 
-PyPI is not used until a maintainer deliberately creates the first release. To contribute from a
-local checkout instead:
+Windows users can download and inspect the PowerShell installer before running it:
+
+```powershell
+irm https://agents.172x.ai/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0
+```
+
+See [Distribution](DISTRIBUTION.md) for checksum verification, release mirrors, and safer
+convenience forms. To contribute from a local checkout instead:
 
 ```bash
 python3.12 -m venv .venv

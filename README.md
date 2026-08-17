@@ -8,11 +8,23 @@ the runtime and coordinator; 172X defines the roles, handoffs, evidence, and bou
 
 ## Install
 
-Until the first PyPI release, install the CLI directly from GitHub with `pipx`:
+Install the standalone CLI from a pinned GitHub Release mirrored through Cloudflare. The end-user
+install does not require Python, `pip`, or `pipx`:
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
+curl --fail --location --remote-name https://agents.172x.ai/install.sh
+sh install.sh --version v0.1.0
 ```
+
+On Windows, save and inspect the PowerShell installer before running it:
+
+```powershell
+irm https://agents.172x.ai/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0
+```
+
+See the [distribution contract](docs/DISTRIBUTION.md) for checksum verification, convenience
+pipeline forms, release mirrors, and the Cloudflare publication gate.
 
 From the project where Codex will work, install the supported integration:
 
@@ -84,6 +96,7 @@ live validation before it can be treated as fully autonomous. Read the
 - [Architecture](docs/ARCHITECTURE.md)
 - [CLI contract](docs/CLI.md)
 - [Codex integration](docs/CODEX_INTEGRATION.md)
+- [Distribution](docs/DISTRIBUTION.md)
 - [Experimental status](docs/DEV_LOOP_VALIDATION.md)
 
 ## Contributing and governance
@@ -93,5 +106,6 @@ live validation before it can be treated as fully autonomous. Read the
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), and see
 [TRADEMARKS.md](TRADEMARKS.md) for brand-use terms.
 
-Maintainers use the manual, approval-gated [release procedure](RELEASING.md). Pull requests and
-merges to `main` never publish to PyPI.
+Maintainers use the manual, approval-gated [release procedure](RELEASING.md). GitHub Releases and
+the Cloudflare mirror are the primary distribution path; the optional PyPI workflow is manual and
+never runs on a pull request or a merge to `main`.
