@@ -2,14 +2,22 @@
 
 ## Install the CLI
 
-For normal use, install the current GitHub source with `pipx`:
+Install the latest stable standalone CLI; Python, `pip`, and `pipx` are not required:
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
+curl -fsSL https://forge.172x.ai/install.sh | sh
 ```
 
-PyPI is not used until a maintainer deliberately creates the first release. To contribute from a
-local checkout instead:
+Windows users can use the pinned PowerShell installer:
+
+```powershell
+irm https://forge.172x.ai/install.ps1 | iex
+```
+
+See the [distribution contract](DISTRIBUTION.md) for checksum verification, pinned installation,
+and the release process.
+
+To contribute from a local checkout instead:
 
 ```bash
 python3.12 -m venv .venv
@@ -17,27 +25,42 @@ source .venv/bin/activate
 python -m pip install -e ".[dev,docs]"
 ```
 
-## Prepare a project
+## Install Forge
 
-From the Git repository where Codex will work, run the guided installer:
-
-```bash
-agents install
-```
-
-Or accept the supported explicit profile:
+Install Forge once for your Codex user profile:
 
 ```bash
-agents install codex python
+agents install codex
 ```
 
-The installer asks which gate tools to add, defaulting to `mypy`, `ruff`, `radon`, and `pytest`; it
-adds the selected known tools through the repository's `uv` or Poetry convention. For a preview
-that writes nothing, add `--dry-run`. Installation writes a committed `172x.toml` plus
-project-scoped Codex skills and custom agents.
+To install a focused capability:
 
-Today the supported profile is Codex + Python + Git + GitHub on macOS. Claude, Gemini, Rust, other
-languages, Linux, and Windows are planned; use `agents capabilities` to see the current boundary.
+```bash
+agents install codex --only principal-architect
+```
+
+The installer writes only global, namespaced Codex skills. It does not select a language, prompt
+for gates, write project files, install tools, modify dependencies, or choose a package manager.
+For a preview that writes nothing, add `--dry-run`.
+
+## Activate a project quality contract
+
+From a project root, optionally record the language and expected gate IDs that Forge should check:
+
+```bash
+agents activate python
+```
+
+Activation writes ignored `.172x/contexts.toml` only and adds `.172x/` to the repository's local
+`.git/info/exclude` when Git is available. It asks for expected gates but never installs or changes
+them. In a monorepo, select the package path explicitly:
+
+```bash
+agents activate python --path services/api
+```
+
+Python is the only activatable language today. Claude, Gemini, Rust, other languages, Linux, and
+Windows are planned; use `agents capabilities` to see the current boundary.
 
 Run a read-only readiness check before a workflow:
 
@@ -45,7 +68,8 @@ Run a read-only readiness check before a workflow:
 agents doctor
 ```
 
-It reports missing executables, Git/GitHub prerequisites, profile gate tools, and the independent-reviewer identity requirement.
+It reports global Forge status, local activation, expected gate availability, Git/GitHub
+prerequisites, and the independent-reviewer identity requirement. It never installs anything.
 
 ## Pick a workflow
 
@@ -68,7 +92,7 @@ agents --workflow dev-loop
 ```
 
 `dev-loop` takes your task, makes a Brief Author handoff, normalizes a clean current non-main branch
-when the profile permits it, creates a new task branch, runs the selected engineering gate, opens a
+when the local activation permits it, creates a new task branch, runs the selected engineering gate, opens a
 GitHub pull request, gets independent QA/review, addresses Must Fix findings, and requests a merge
 only after the live GitHub gate passes. It does not ask for a pull-request number. It is
 experimental until repeated live runs demonstrate reliable stage handoffs; see
@@ -90,9 +114,12 @@ Use `$172x use idea-to-build` to select the next workflow. `$172x list` shows th
 
 ## Compose a project workflow
 
-Select **172X · Workflow Composer** from `/skills` when the bundled workflows do not fit. It proposes a workflow using only installed roles and waits for approval before writing `.172x/workflows/<workflow-id>.md`. Then validate and add the native picker entry:
+Select **172X · Workflow Composer** from `/skills` when the bundled workflows do not fit. It proposes a workflow using only installed roles and waits for approval before writing local `.172x/workflows/<workflow-id>.md`. Then validate it:
 
 ```bash
 agents workflows --target .
-agents install codex python --force
+agents show <workflow-id> --target .
 ```
+
+Project-owned workflows are authoring, listing, and inspection material in v0.1. They do not gain a
+global picker entry and cannot be selected with `agents --workflow` or run with `$172x run`.

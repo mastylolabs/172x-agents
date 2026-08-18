@@ -8,33 +8,66 @@ the runtime and coordinator; 172X defines the roles, handoffs, evidence, and bou
 
 ## Install
 
-Until the first PyPI release, install the CLI directly from GitHub with `pipx`:
+Install the latest stable standalone CLI; Python, `pip`, and `pipx` are not required:
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
+curl -fsSL https://forge.172x.ai/install.sh | sh
 ```
 
-From the project where Codex will work, install the supported integration:
+On Windows, save and inspect the PowerShell installer before running it:
 
-```bash
-agents install codex python
-agents --workflow dev
+```powershell
+irm https://forge.172x.ai/install.ps1 | iex
 ```
 
-To install only the capabilities a project needs:
+See the [distribution contract](docs/DISTRIBUTION.md) for release assets, checksum verification,
+and pinned installation.
+
+Install Forge capabilities once for Codex. This is personal, global installation; it does not
+select a language or modify a project:
 
 ```bash
-agents install codex python --only principal-architect --only principal-engineer
-agents install codex python --only dev-loop
+agents install codex
+```
+
+To install only the capabilities you want available in Codex:
+
+```bash
+agents install codex --only principal-architect --only principal-engineer
+agents install codex --only dev-loop
 ```
 
 The full library remains the default. A focused workflow includes its participating specialists;
-a focused specialist includes its required shared material.
+a focused specialist includes its required shared material. Forge writes only its namespaced skills
+under your Codex home and never edits `.codex/config.toml`.
+
+Remove every global Forge skill later with:
+
+```bash
+agents uninstall codex
+```
+
+Use `--only CAPABILITY_ID` for one direct capability or `--dry-run` to inspect the removal plan.
+
+Inside a project, optionally record the local quality contract that Forge should verify:
+
+```bash
+agents activate python
+agents doctor
+```
+
+Activation asks for expected gate tools and stores them only in ignored `.172x/contexts.toml`.
+172X Agents never installs, upgrades, removes, or selects external development tools or package
+managers. In a monorepo, activate an explicit package path from the repository root:
+
+```bash
+agents activate python --path services/api
+```
 
 ## What is supported today
 
 The canonical Markdown library is designed to project into native host formats. The implemented
-project profile is deliberately narrower:
+activation and diagnostic support is deliberately narrower:
 
 | Concern | Supported now | Planned, not selectable |
 | --- | --- | --- |
@@ -64,9 +97,9 @@ client, hosted service, or bundled MCP server.
 
 ## Use with Codex
 
-The installer creates project-scoped skills and native Codex custom agents. In an existing Codex
-session, open `/skills` and select an entry such as **172X · Dev**, **172X · Principal Architect**,
-or **172X · QA Engineer**. The optional catalog skill also supports text selection:
+The installer creates global Codex skills. In an existing Codex session, open `/skills` and select
+an entry such as **172X · Dev**, **172X · Principal Architect**, or **172X · QA Engineer**. The
+optional catalog skill also supports text selection:
 
 ```text
 $172x run dev
@@ -84,6 +117,7 @@ live validation before it can be treated as fully autonomous. Read the
 - [Architecture](docs/ARCHITECTURE.md)
 - [CLI contract](docs/CLI.md)
 - [Codex integration](docs/CODEX_INTEGRATION.md)
+- [Distribution](docs/DISTRIBUTION.md)
 - [Experimental status](docs/DEV_LOOP_VALIDATION.md)
 
 ## Contributing and governance
@@ -93,5 +127,6 @@ live validation before it can be treated as fully autonomous. Read the
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), and see
 [TRADEMARKS.md](TRADEMARKS.md) for brand-use terms.
 
-Maintainers use the manual, approval-gated [release procedure](RELEASING.md). Pull requests and
-merges to `main` never publish to PyPI.
+Maintainers use the manual, approval-gated [release procedure](RELEASING.md). GitHub Releases are
+the primary distribution path; the optional PyPI workflow is manual and never runs on a pull
+request or a merge to `main`.

@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from agent_workflows.library import (
+    LibraryItem,
     agent_domain,
     load_library,
     load_workflows,
@@ -21,6 +22,11 @@ from agent_workflows.library import (
 
 SECTION = re.compile(r"^## (?P<heading>.+?)\s*$([\s\S]*?)(?=^## |\Z)", re.MULTILINE)
 LIST_PREFIX = re.compile(r"^(?:[-*]|\d+\.)\s+")
+ROUTING = re.compile(
+    r"\*\*Use this agent when:\*\*\s*(?P<use_when>.*?)\s*"
+    r"\*\*Do not use this agent when:\*\*\s*(?P<do_not_use_when>.+)",
+    re.DOTALL,
+)
 
 
 def section(body: str, heading: str) -> str:
@@ -44,6 +50,43 @@ def participant_ids(body: str) -> list[str]:
     return re.findall(r"`([a-z0-9-]+)`", section(body, "Participating agents"))
 
 
+def agent_routing(body: str) -> tuple[str, str]:
+    """Return separate positive and negative routing derived from canonical labels."""
+    value = section(body, "Use when")
+    match = ROUTING.fullmatch(value)
+    if match is None:
+        raise ValueError("agent Use when must contain labeled use and do-not-use routing")
+    return (
+        " ".join(match.group("use_when").split()),
+        " ".join(match.group("do_not_use_when").split()),
+    )
+
+
+def agent_entry(agent: LibraryItem, workflows: list[LibraryItem]) -> dict[str, Any]:
+    """Project one canonical specialist into the Forge catalog schema."""
+    use_when, do_not_use_when = agent_routing(agent.body)
+    return {
+        "slug": agent.id,
+        "name": agent.name,
+        "domain": agent_domain(agent).casefold(),
+        "kind": "Specialist",
+        "summary": agent.description,
+        "useWhen": use_when,
+        "doNotUseWhen": do_not_use_when,
+        "badges": ["172X Reviewed", "Evidence required"],
+        "reviewed": True,
+        "evidenceRequired": True,
+        "receive": lines(section(agent.body, "Deliverables")),
+        "qualityBar": lines(section(agent.body, "Quality bar")),
+        "evidence": lines(section(agent.body, "Evidence requirements")),
+        "boundaries": lines(section(agent.body, "Boundaries")),
+        "workflows": [
+            workflow.id for workflow in workflows if agent.id in participant_ids(workflow.body)
+        ],
+        "version": str(agent.version),
+    }
+
+
 def source_revision() -> str:
     result = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],
@@ -61,30 +104,7 @@ def build_catalog() -> dict[str, Any]:
     workflows = load_workflows()
     return {
         "revision": source_revision(),
-        "agents": [
-            {
-                "slug": agent.id,
-                "name": agent.name,
-                "domain": agent_domain(agent).casefold(),
-                "kind": "Specialist",
-                "summary": agent.description,
-                "useWhen": " ".join(lines(section(agent.body, "Use when"))),
-                "badges": ["172X Reviewed", "Evidence required"],
-                "reviewed": True,
-                "evidenceRequired": True,
-                "receive": lines(section(agent.body, "Deliverables")),
-                "qualityBar": lines(section(agent.body, "Quality bar")),
-                "evidence": lines(section(agent.body, "Evidence requirements")),
-                "boundaries": lines(section(agent.body, "Boundaries")),
-                "workflows": [
-                    workflow.id
-                    for workflow in workflows
-                    if agent.id in participant_ids(workflow.body)
-                ],
-                "version": str(agent.version),
-            }
-            for agent in agents
-        ],
+        "agents": [agent_entry(agent, workflows) for agent in agents],
         "workflows": [
             {
                 "slug": workflow.id,

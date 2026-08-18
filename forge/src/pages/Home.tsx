@@ -61,7 +61,8 @@ export default function Home() {
       (x) =>
         x.name.toLowerCase().includes(q) ||
         x.summary.toLowerCase().includes(q) ||
-        x.useWhen.toLowerCase().includes(q),
+        x.useWhen.toLowerCase().includes(q) ||
+        x.doNotUseWhen.toLowerCase().includes(q),
     )
     const w = workflows.filter(
       (x) =>
@@ -99,7 +100,7 @@ export default function Home() {
               <br className="hidden sm:block" /> your next build.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-[clamp(1.05rem,2vw,1.25rem)] leading-relaxed text-muted-foreground">
-              Verified specialists and workflows for turning ideas into
+              Curated specialists and workflows for turning ideas into
               reviewable, shippable work.
             </p>
           </div>
@@ -278,7 +279,7 @@ export default function Home() {
       {/* Featured agents strip */}
       <Container className="py-14">
         <SectionLabel
-          title="Recently reviewed specialists"
+          title="Featured specialists"
           action={{ to: '/agents', label: 'Browse all' }}
         />
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

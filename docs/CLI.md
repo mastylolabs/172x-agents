@@ -1,69 +1,83 @@
 # CLI contract
 
-`agents` and `172x-agents` expose the same small command group. The optional, separately installed root CLI may load it as `172x agents`.
+`agents` and `172x-agents` expose the same small command group. The optional, separately
+installed root CLI may load it as `172x agents`.
 
-The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an agent runtime, track runs, call model APIs, or store credentials.
+The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an
+agent runtime, call model APIs, manage credentials, install package dependencies, or provision
+external development tools.
 
-## Supported profile
+## Install Forge once
 
 ```text
-agents install
-agents install codex [python] [--gate TOOL]... [--only CAPABILITY_ID]...
+agents install codex [--only CAPABILITY_ID]... [--dry-run] [--force]
 ```
 
-Bare `agents install` asks the same questions interactively. `agents install codex python` also asks which gate tools to install unless `--gate TOOL` is repeated explicitly. The default is all supported Python tools. The only selectable implementation is:
+This is a personal, global installation. It writes only Forge-managed skills beneath the current
+Codex home (normally `~/.codex/skills/172x-*`). It does not select a language, prompt for gates,
+write project files, edit `.codex/config.toml`, install Codex, or authenticate Codex.
 
-| Concern | Supported now | Planned, not selectable |
-| --- | --- | --- |
-| Host | Codex | Claude, Gemini |
-| Language | Python | C++, Java, C#, Rust |
-| SCM | Git | — |
-| Git remote provider | GitHub | GitLab, Bitbucket |
-| Platform | macOS | Linux, Windows |
-
-`agents capabilities` prints this status from the program. It never presents a planned capability as installed.
-
-### Focused installation
-
-Use repeatable `--only` values to install one or more bundled agent or workflow IDs:
+Use repeatable `--only` values for a focused installation:
 
 ```bash
-agents install codex python --only principal-architect
-agents install codex python --only principal-architect --only principal-engineer
-agents install codex python --only dev-loop
+agents install codex --only principal-architect
+agents install codex --only principal-architect --only principal-engineer
+agents install codex --only dev-loop
 ```
 
-The selected capability receives the required shared references, assets, and generated Codex files. A
-selected workflow also receives its documented participating roles. Focused installation is additive:
-existing managed capabilities remain unless a separate explicit managed refresh replaces them. Omit
-`--only` to install the complete official 172X library.
+Omit `--only` to install the complete official library. A selected workflow includes its declared
+specialists; a selected specialist includes required shared material. `--force` can replace only
+conflicting 172X-managed global skill files. Changing selections removes stale canonical files that
+still match bundled bytes, preserves unknown files, and treats a modified stale file as a conflict
+unless `--force` explicitly authorizes removal.
 
-The installer writes canonical Codex files plus the committed `172x.toml` profile. It is idempotent, supports `--target`, `--dry-run`, and `--force`, preserves unrelated content, and plans all owned-file writes before writing any of them. A changed `172x.toml` is a managed-file conflict and requires explicit `--force`.
+Global installation ships Codex skills. It does not write a guessed global custom-agent TOML
+location; support for that Codex projection must be verified before it is implemented.
 
-```toml
-[host]
-id = "codex"
+## Uninstall Forge
 
-[language]
-id = "python"
-
-[scm]
-id = "git"
-
-[provider]
-id = "github"
-
-[gate]
-tools = ["mypy", "ruff", "radon", "pytest"]
-
-[change_request]
-kind = "pull_request"
-base_branch = "main"
-merge_method = "squash"
-merge_current_branch = true
+```text
+agents uninstall codex [--only CAPABILITY_ID]... [--dry-run] [--force]
 ```
 
-Python gate choices are fixed tool IDs from the bundled profile: `mypy`, `ruff`, `radon`, and `pytest`. They map to safe argument-list commands; arbitrary shell commands are not configuration. The installer adds selected tools to an existing `uv` or Poetry project's development dependencies, then checks them. For an existing Python repository, 172X prefers `uv run`, `poetry run`, or `hatch run` when its usual lock/configuration is present, otherwise it uses the existing environment.
+This removes only exact Forge-managed global skill directories beneath the current Codex home. It
+never removes project files, `.172x/` state, external tools, or unrelated Codex skills. Omit
+`--only` to remove the complete Forge installation; use it to remove one direct capability:
+
+```bash
+agents uninstall codex
+agents uninstall codex --only principal-architect
+agents uninstall codex --dry-run
+```
+
+The command refuses a modified or unsafe Forge skill directory unless `--force` explicitly
+confirms that removing that exact namespaced directory is intended.
+
+## Activate a local quality contract
+
+```text
+agents activate [python] [--path RELATIVE_PATH] [--gate TOOL]... [--dry-run] [--force]
+```
+
+Activation records the developer's expected language and gate IDs in ignored local state:
+
+```text
+.172x/contexts.toml
+```
+
+When the target is a Git repository, activation adds `.172x/` only to that repository's local
+`.git/info/exclude`; it never edits a committed `.gitignore`.
+
+When `--gate` is omitted, activation asks which supported Python gates the project expects. It
+never adds, removes, upgrades, or selects external tools or a package manager. `--path` is
+repository-relative and lets a monorepo record a selected package:
+
+```bash
+agents activate python --path services/api
+```
+
+The only activatable language today is Python. Rust, TypeScript, and other languages are planned
+and are rejected rather than appearing to work.
 
 ## Diagnostics
 
@@ -71,50 +85,43 @@ Python gate choices are fixed tool IDs from the bundled profile: `mypy`, `ruff`,
 agents doctor [--target PATH]
 ```
 
-`doctor` is read-only. It checks the installed Markdown library, Codex integration, active workflow selection, macOS, Codex, Git and the Git remote, GitHub CLI/authentication/repository permission, and selected gate runner/tools. It reports reviewer identity as `CHECK`: a logically independent reviewer agent is not automatically a distinct eligible GitHub account.
+`doctor` is read-only. It validates the bundled library, global Forge skills, Codex availability,
+local activation, selected gate availability, and relevant Git/GitHub prerequisites. It reports
+missing gates with evidence and guidance; it does not install anything.
 
 ## Library and workflows
 
 ```text
-agents list [--target PATH]
+agents list
 agents domains
+agents capabilities
 agents workflows [--target PATH]
 agents show WORKFLOW_ID [--target PATH]
 agents --workflow WORKFLOW_ID [--target PATH] [--no-launch]
 ```
 
-`list` and `domains` read the bundled catalog. `workflows` and `show` also include validated project-owned workflow Markdown from `.172x/workflows/` when `--target` is supplied. Selecting either a bundled or project-owned workflow validates the committed profile and current Codex installation, writes `.172x/active-workflow`, and optionally launches the local `codex` executable with the matching direct native skill. It never installs or authenticates Codex.
+`list` reports whether globally installed specialist skills are current. `domains`, `workflows`,
+and `show` read the bundled Markdown catalog; the latter two also recognize validated local
+workflow Markdown at `.172x/workflows/` when a target is supplied.
 
-## Project-owned workflow composition
-
-Open `/skills` and select **172X · Workflow Composer** to design a workflow from the installed roles. It proposes the role selection, handoffs, feedback limits, and human gates before writing one project-owned Markdown file:
-
-```text
-.172x/workflows/<workflow-id>.md
-```
-
-The Composer uses the same scalar frontmatter and required workflow sections as the bundled library. It does not create an executor, activate the workflow, or run it. After approving a new or revised workflow, run:
-
-```bash
-agents workflows --target .
-agents install codex python --force
-```
-
-The refresh validates the workflow against existing agent IDs and generates a native `/skills` entry. Project workflows are source files owned by the project; only their generated skill projections are 172X-managed.
+Selecting a bundled workflow validates its global Forge skill, writes ignored
+`.172x/active-workflow`, adds `.172x/` to local Git exclude when available, and optionally launches
+the local `codex` executable. Project-owned workflows are authoring, listing, and inspection
+material only in v0.1; `--workflow`, `$172x run`, and `$172x use` do not select or run them. The CLI
+never installs or authenticates Codex.
 
 ### Codex CLI options
 
-When launching a workflow, unknown root options are forwarded unchanged to the local Codex executable before the 172X workflow prompt. This keeps the wrapper current as Codex adds options:
+When launching a workflow, unknown root options are forwarded unchanged to the local Codex
+executable before the 172X workflow prompt:
 
 ```bash
 agents --model gpt-5.4 --ask-for-approval never --workflow dev-loop
 ```
 
-Use only options supported by your installed `codex --help`. `--yolo` is not an option in the current Codex CLI; its closest explicit equivalent is `--dangerously-bypass-approvals-and-sandbox`, which intentionally remains conspicuous because it removes Codex approval and sandbox protection.
+Use only options supported by your installed `codex --help`.
 
 ## GitHub change-request guard
-
-`dev-loop` is experimental and starts from a task, never a pull-request number. Codex discovers or creates the GitHub pull request as part of the workflow. The language in the workflow is provider-neutral—*change request*, *review*, and *merge*—but the implemented adapter translates those terms to GitHub pull requests. See [validation status](DEV_LOOP_VALIDATION.md) for observed coordination limits.
 
 ```text
 agents github review-threads PR_NUMBER
@@ -123,19 +130,8 @@ agents github gate PR_NUMBER
 agents github merge PR_NUMBER
 ```
 
-The first command is read-only. The last two use the selected GitHub profile and fail closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's `APPROVED` decision, has no failing or pending reported checks, and has no unresolved review threads. A repository with no reported GitHub checks is valid. `merge` repeats that gate, pins the reviewed head commit, and uses only the configured normal merge method; it never sends `--admin` or `--auto`, and never creates, changes, weakens, or bypasses repository branch rules. A merge-queue acceptance is pending until GitHub reports the merged state.
-
-`resolve-thread` is a narrow GitHub write: it verifies that the thread belongs to the named pull request. The workflow allows it only after independent review has verified the exact fix.
-
-## Managed paths
-
-```text
-.agents/skills/172x-agents/**
-.agents/skills/172x-*/**
-.codex/agents/172x-*.toml
-.172x/workflows/*.md
-.172x/active-workflow
-172x.toml
-```
-
-The Workflow Composer writes only the documented project-owned workflow source path after user approval. The installer never writes Codex configuration, credentials, or arbitrary project files.
+The first command is read-only. The latter commands require an active local context and fail
+closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's
+`APPROVED` decision, has no failing or pending reported checks, and has no unresolved review
+threads. `merge` repeats that gate, pins the reviewed head commit, and uses only the configured
+normal merge method; it never sends `--admin` or `--auto` and never bypasses repository rules.

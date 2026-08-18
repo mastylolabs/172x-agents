@@ -19,6 +19,7 @@ export interface Agent {
   kind: 'Specialist'
   summary: string // one sentence
   useWhen: string
+  doNotUseWhen: string
   badges: string[] // capability badges
   reviewed: boolean
   evidenceRequired: boolean

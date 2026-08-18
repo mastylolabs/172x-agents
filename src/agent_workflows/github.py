@@ -126,7 +126,7 @@ def _required_string(value: object, label: str) -> str:
 
 
 def merge_policy(target: Path) -> MergePolicy:
-    """Read dev-loop merge choices from the reviewed project profile."""
+    """Read the fixed dev-loop merge choices after local activation is present."""
     profile = load_profile(_project_directory(target))
     return MergePolicy(
         base_branch=profile.base_branch,

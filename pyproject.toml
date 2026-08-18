@@ -6,10 +6,27 @@ build-backend = "setuptools.build_meta"
 name = "172x-agents"
 version = "0.1.0"
 description = "Markdown-first composable agent workflows for Codex."
+authors = [{ name = "Mastylo Labs LLC", email = "zbigniew@mastylolabs.com" }]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["typer>=0.12"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://forge.172x.ai/"
+Documentation = "https://forge.172x.ai/"
+Repository = "https://github.com/mastylolabs/172x-agents"
+Issues = "https://github.com/mastylolabs/172x-agents/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]

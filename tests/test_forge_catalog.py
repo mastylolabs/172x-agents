@@ -29,3 +29,13 @@ def test_forge_catalog_is_derived_from_every_canonical_agent_and_workflow() -> N
         "qa-engineer",
         "pr-reviewer",
     ]
+    for agent in catalog["agents"]:
+        assert agent["useWhen"]
+        assert agent["doNotUseWhen"]
+        assert "**Use this agent when:**" not in agent["useWhen"]
+        assert "**Do not use this agent when:**" not in agent["useWhen"]
+        assert "**Do not use this agent when:**" not in agent["doNotUseWhen"]
+
+    designer = next(agent for agent in catalog["agents"] if agent["slug"] == "ux-ui-designer")
+    assert "approved brief or specification" in designer["useWhen"]
+    assert "new brand/visual identity" in designer["doNotUseWhen"]

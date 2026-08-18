@@ -12,14 +12,8 @@ const hosts = [
   { id: 'claude', name: 'Claude', enabled: false },
 ]
 
-const languages = [
-  { id: 'python', name: 'Python', enabled: true },
-  { id: 'cpp', name: 'C++', enabled: false },
-]
-
 export default function Install() {
   const [host] = useState('codex')
-  const [language] = useState('python')
   const [scope, setScope] = useState<Scope>('entire')
   const [selected, setSelected] = useState<string[]>([
     'principal-architect',
@@ -32,10 +26,10 @@ export default function Install() {
     )
 
   const installCommand = useMemo(() => {
-    const base = `agents install ${host} ${language}`
+    const base = `agents install ${host}`
     if (scope === 'entire' || selected.length === 0) return base
     return base + ' ' + selected.map((s) => `--only ${s}`).join(' ')
-  }, [host, language, scope, selected])
+  }, [host, scope, selected])
 
   return (
     <Container className="py-10">
@@ -44,7 +38,7 @@ export default function Install() {
         <PageHeading
           eyebrow="Guided setup"
           title="Install 172X"
-          description="Build your command step by step. pipx installs the 172X tool; agents install adds selected Forge capabilities to this project."
+          description="Install the latest stable standalone CLI, then add selected Forge capabilities to Codex globally. Python is not required."
         />
       </div>
 
@@ -65,24 +59,7 @@ export default function Install() {
             </div>
           </Step>
 
-          <Step n={2} title="Project profile">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {languages.map((l) => (
-                <OptionCard
-                  key={l.id}
-                  label={l.name}
-                  selected={language === l.id && l.enabled}
-                  disabled={!l.enabled}
-                  badge={l.enabled ? undefined : 'Planned'}
-                />
-              ))}
-            </div>
-            <p className="mt-3 text-[13px] text-muted-foreground">
-              Assumes the current profile: Python · Git · GitHub · macOS.
-            </p>
-          </Step>
-
-          <Step n={3} title="Scope">
+          <Step n={2} title="Scope">
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
@@ -149,6 +126,20 @@ export default function Install() {
               </div>
             )}
           </Step>
+
+          <Step n={3} title="Optional project activation">
+            <div className="rounded-xl border border-border bg-muted/40 p-4 text-[13px] leading-relaxed text-muted-foreground">
+              Forge installation is language-neutral. In a project, record expected gates without
+              installing or modifying tools:
+              <div className="mt-3">
+                <CommandBlock command="agents activate python" compact />
+              </div>
+              <p className="mt-3">
+                For a monorepo package, use{' '}
+                <code className="font-mono text-foreground">--path services/api</code>.
+              </p>
+            </div>
+          </Step>
         </div>
 
         {/* Command preview */}
@@ -157,14 +148,25 @@ export default function Install() {
             <h3 className="font-display text-[16px] font-bold tracking-tight text-foreground">
               Your commands
             </h3>
-            <CommandBlock label="1 · Install the tool" command="pipx install 172x-agents" compact />
-            <CommandBlock label="2 · Add capabilities" command={installCommand} compact />
+            <CommandBlock
+              label="1 · Install the CLI (macOS/Linux)"
+              command="curl -fsSL https://forge.172x.ai/install.sh | sh"
+              compact
+            />
+            <CommandBlock
+              label="1 · Install the CLI (Windows)"
+              command="irm https://forge.172x.ai/install.ps1 | iex"
+              compact
+            />
+            <CommandBlock label="2 · Install Forge" command={installCommand} compact />
 
             <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-              <span className="font-mono text-foreground">pipx</span> installs the
-              172X tool.{' '}
+              The installer downloads the latest stable 172X CLI by default; pass{' '}
+              <span className="font-mono text-foreground">--version</span> to pin a release. Python
+              is not required.{' '}
               <span className="font-mono text-foreground">agents install</span>{' '}
-              adds selected Forge capabilities to this project.
+              adds selected Forge capabilities to Codex globally. Project activation is optional,
+              local, and never installs external tools.
             </div>
           </div>
         </aside>

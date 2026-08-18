@@ -11,11 +11,11 @@ from agent_workflows.github import (
     resolve_review_thread,
 )
 from agent_workflows.library import LibraryError
-from agent_workflows.profiles import default_profile, project_toml
+from agent_workflows.profiles import default_profile, write_activation
 
 
 def _enable_dev_loop(project: Path) -> None:
-    (project / "172x.toml").write_bytes(project_toml(default_profile()))
+    write_activation(project, Path("."), default_profile())
 
 
 def _pr_json(*, checks: list[dict[str, object]] | None = None) -> dict[str, object]:
@@ -109,16 +109,7 @@ def _mock_gh(
 
 
 def test_merge_policy_requires_exact_repository_opt_in(tmp_path: Path) -> None:
-    with pytest.raises(LibraryError, match="profile is missing"):
-        merge_policy(tmp_path)
-
-    (tmp_path / "172x.toml").write_text(
-        '[host]\nid = "codex"\n\n[language]\nid = "python"\n\n[scm]\nid = "git"\n\n'
-        '[provider]\nid = "github"\n\n[gate]\ntools = ["mypy"]\n\n'
-        '[change_request]\nkind = "pull_request"\nbase_branch = "release"\nmerge_method = "squash"\nmerge_current_branch = true\n',
-        encoding="utf-8",
-    )
-    with pytest.raises(LibraryError, match="base_branch must be main"):
+    with pytest.raises(LibraryError, match="activation is missing"):
         merge_policy(tmp_path)
 
 
@@ -128,12 +119,8 @@ def test_dev_loop_policy_handles_any_clean_current_branch_by_default(tmp_path: P
     policy = merge_policy(tmp_path)
 
     assert policy.merge_current_branch is True
-    (tmp_path / "172x.toml").write_bytes(
-        project_toml(default_profile()).replace(
-            b"merge_current_branch = true", b"merge_current_branch = false"
-        )
-    )
-    assert merge_policy(tmp_path).merge_current_branch is False
+    assert policy.base_branch == "main"
+    assert policy.merge_method == "squash"
 
 
 def test_merge_gate_requires_live_github_evidence(monkeypatch, tmp_path: Path) -> None:

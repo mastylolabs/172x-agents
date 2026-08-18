@@ -1,242 +1,347 @@
-import tomllib
+import re
 from pathlib import Path
 
 import pytest
 
 from agent_workflows.codex import (
     active_workflow,
-    configured_integration_current,
     install_codex,
-    install_configured_codex,
+    installed_capability_ids,
+    integration_current,
     managed_files,
     select_workflow,
+    uninstall_codex,
 )
 from agent_workflows.library import LibraryError
-from agent_workflows.profiles import default_profile
+
+SUPPORT_PATH = re.compile(
+    r"(?<![a-z0-9_./-])"
+    r"((?:references|assets)/(?:[a-z0-9][a-z0-9.-]*/)*"
+    r"[a-z0-9][a-z0-9.-]*\.(?:md|mmd|toml|yaml))"
+)
 
 
-def test_install_generates_parseable_toml_and_is_idempotent(tmp_path: Path) -> None:
-    unrelated = tmp_path / ".codex" / "keep.toml"
-    unrelated.parent.mkdir()
-    unrelated.write_text("keep = true\n", encoding="utf-8")
+def test_global_install_is_idempotent_and_leaves_project_files_alone(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
+    unrelated = home / "config.toml"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("model = 'example'\n", encoding="utf-8")
 
-    first = install_codex(tmp_path)
-    second = install_codex(tmp_path)
+    first = install_codex(home)
+    second = install_codex(home)
 
     assert all(action == "CREATE" for action, _, _ in first)
     assert all(action == "UNCHANGED" for action, _, _ in second)
-    assert unrelated.read_text(encoding="utf-8") == "keep = true\n"
-    for relative in managed_files():
-        assert (tmp_path / relative).is_file()
-    for path in (tmp_path / ".codex/agents").glob("172x-*.toml"):
-        parsed = tomllib.loads(path.read_text(encoding="utf-8"))
-        assert set(parsed) == {"name", "description", "developer_instructions"}
-        assert parsed["developer_instructions"].startswith("## Domain\n")
-        assert "\\n" not in path.read_text(encoding="utf-8")
-    skill_paths = sorted((tmp_path / ".agents/skills").glob("172x-*/SKILL.md"))
-    direct_skills = [path for path in skill_paths if path.parent.name != "172x-agents"]
-    workflow_skills = [
-        path
-        for path in direct_skills
-        if path.parent.name
-        in {"172x-dev", "172x-dev-loop", "172x-idea-to-build", "172x-idea-to-product"}
-    ]
-    assert len(direct_skills) == 21
-    assert len(workflow_skills) == 4
-    assert (
-        (tmp_path / ".agents/skills/172x-brief-author/agents/openai.yaml")
-        .read_text(encoding="utf-8")
-        .startswith("interface:\n")
-    )
-    brief_skill = (tmp_path / ".agents/skills/172x-brief-author/SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    assert "references/agents/product/brief-author.md" in brief_skill
-    assert "Resolve any `references/` or `assets/` path" in brief_skill
-    assert "Run the `dev-loop` workflow" in (
-        tmp_path / ".agents/skills/172x-dev-loop/SKILL.md"
+    assert unrelated.read_text(encoding="utf-8") == "model = 'example'\n"
+    assert integration_current(home)
+    assert len(installed_capability_ids(home)) == 21
+    assert all((home / relative).is_file() for relative in managed_files())
+    assert not (home / "agents").exists()
+    assert (home / "skills/172x-principal-architect/SKILL.md").is_file()
+    assert "172x-agents/references/agents/platform/principal-architect.md" in (
+        home / "skills/172x-principal-architect/SKILL.md"
     ).read_text(encoding="utf-8")
-    assert (
-        tmp_path / ".agents/skills/172x-agents/references/platform/architecture-patterns.md"
-    ).is_file()
-    assert (
-        tmp_path / ".agents/skills/172x-agents/assets/platform/system-context-template.mmd"
-    ).is_file()
+    for workflow_id in ("dev", "dev-loop", "idea-to-build", "idea-to-product"):
+        assert (home / f"skills/172x-agents/references/workflows/{workflow_id}.md").is_file()
+    for support_path in (
+        "references/common/evidence-and-uncertainty.md",
+        "references/design/ux-ui-definition-of-done.md",
+        "references/platform/change-discipline.md",
+        "references/quality/review-findings.md",
+        "references/security/threat-modeling.md",
+        "assets/design/ux-ui-spec-template.md",
+        "assets/quality/qa-report-template.md",
+        "assets/security/threat-model-template.md",
+    ):
+        assert (home / "skills/172x-agents" / support_path).is_file()
+    _assert_support_paths_are_closed(managed_files())
 
 
-def test_dry_run_does_not_write(tmp_path: Path) -> None:
-    plan = install_codex(tmp_path, dry_run=True)
+def test_focused_global_install_is_current_for_its_selected_capability(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
+
+    install_codex(home, only=("principal-codebase-reviewer",))
+
+    assert installed_capability_ids(home) == ("principal-codebase-reviewer",)
+
+
+def test_global_install_dry_run_does_not_write_even_when_codex_home_is_absent(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "missing-codex-home"
+
+    plan = install_codex(home, dry_run=True)
 
     assert plan
-    assert not (tmp_path / ".agents").exists()
-    assert not (tmp_path / ".codex").exists()
+    assert not home.exists()
 
 
-def test_focused_install_includes_only_selected_agent_and_shared_support(tmp_path: Path) -> None:
-    install_configured_codex(tmp_path, default_profile(), only=("principal-architect",))
+def test_focused_global_install_includes_only_selected_capability_and_shared_support(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
 
-    assert (tmp_path / ".codex/agents/172x-principal-architect.toml").is_file()
-    assert not (tmp_path / ".codex/agents/172x-backend-engineer.toml").exists()
-    assert (tmp_path / ".agents/skills/172x-principal-architect/SKILL.md").is_file()
-    assert not (tmp_path / ".agents/skills/172x-backend-engineer").exists()
-    assert not (tmp_path / ".agents/skills/172x-workflow-composer").exists()
+    install_codex(home, only=("principal-codebase-reviewer",))
+
+    assert (home / "skills/172x-principal-codebase-reviewer/SKILL.md").is_file()
+    assert not (home / "skills/172x-principal-engineer").exists()
     assert (
-        tmp_path / ".agents/skills/172x-agents/references/agents/platform/principal-architect.md"
+        home / "skills/172x-agents/references/agents/quality/principal-codebase-reviewer.md"
     ).is_file()
-    assert (
-        tmp_path / ".agents/skills/172x-agents/assets/platform/architecture-template.md"
-    ).is_file()
+    assert (home / "skills/172x-agents/references/quality/testing-strategy.md").is_file()
+    assert (home / "skills/172x-agents/references/platform/architecture-patterns.md").is_file()
+    assert not (home / "skills/172x-agents/references/product/market-research-evidence.md").exists()
+    assert not (home / "skills/172x-agents/references/security/threat-modeling.md").exists()
+    assert not (home / "skills/172x-agents/references/workflows").exists()
+    assert not (home / "skills/172x-agents/assets/design/ux-ui-spec-template.md").exists()
+    assert not (home / "agents").exists()
 
 
-def test_focused_workflow_install_includes_its_declared_roles(tmp_path: Path) -> None:
-    install_configured_codex(tmp_path, default_profile(), only=("dev-loop",))
+@pytest.mark.parametrize("capability_id", ["principal-codebase-reviewer", "ux-ui-designer"])
+def test_focused_agent_install_is_exact_idempotent_and_path_closed(
+    tmp_path: Path, capability_id: str
+) -> None:
+    home = tmp_path / "codex-home"
+    unrelated = home / "skills/unrelated/SKILL.md"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("keep\n", encoding="utf-8")
+
+    expected = managed_files(only=(capability_id,))
+    first = install_codex(home, only=(capability_id,))
+    second = install_codex(home, only=(capability_id,))
+
+    installed = {
+        path.relative_to(home) for path in home.rglob("*") if path.is_file() and path != unrelated
+    }
+    assert installed == set(expected)
+    assert all(action == "CREATE" for action, _, _ in first)
+    assert all(action == "UNCHANGED" for action, _, _ in second)
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+    _assert_support_paths_are_closed(expected)
+
+
+def test_focused_workflow_includes_its_declared_specialist_skills(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
+
+    install_codex(home, only=("dev-loop",))
 
     for agent_id in ("brief-author", "principal-engineer", "qa-engineer", "pr-reviewer"):
-        assert (tmp_path / ".codex/agents" / f"172x-{agent_id}.toml").is_file()
-    assert (tmp_path / ".agents/skills/172x-dev-loop/SKILL.md").is_file()
-    assert not (tmp_path / ".codex/agents/172x-security-reviewer.toml").exists()
+        assert (home / "skills" / f"172x-{agent_id}/SKILL.md").is_file()
+    assert (home / "skills/172x-dev-loop/SKILL.md").is_file()
+    assert (home / "skills/172x-agents/references/workflows/dev-loop.md").is_file()
+    assert not (home / "skills/172x-agents/references/workflows/dev.md").exists()
+    assert not (home / "skills/172x-security-reviewer").exists()
+    assert not (
+        home / "skills/172x-agents/references/agents/security/security-reviewer.md"
+    ).exists()
+    assert not (home / "skills/172x-agents/references/security/threat-modeling.md").exists()
+    _assert_support_paths_are_closed(managed_files(only=("dev-loop",)))
 
 
-def test_focused_workflow_install_can_select_its_workflow(tmp_path: Path) -> None:
-    install_configured_codex(tmp_path, default_profile(), only=("dev-loop",))
+def test_focused_workflow_dry_run_is_exact_and_writes_nothing(tmp_path: Path) -> None:
+    home = tmp_path / "missing-codex-home"
 
-    path = select_workflow(tmp_path, "dev-loop")
+    plan = install_codex(home, only=("dev",), dry_run=True)
 
-    assert path.read_text(encoding="utf-8") == "dev-loop\n"
-    with pytest.raises(LibraryError, match="agents install codex"):
-        select_workflow(tmp_path, "dev")
-
-
-def test_focused_install_rejects_unknown_capability(tmp_path: Path) -> None:
-    with pytest.raises(LibraryError, match="unknown 172X capability ID: missing"):
-        install_configured_codex(tmp_path, default_profile(), only=("missing",))
+    assert {path for _, path, _ in plan} == set(managed_files(only=("dev",)))
+    assert not home.exists()
 
 
-def test_conflicts_are_all_or_nothing_and_force_is_managed_only(tmp_path: Path) -> None:
-    conflicting = tmp_path / ".agents/skills/172x-agents/SKILL.md"
+def test_full_to_focused_reconciles_exact_managed_closure_and_preserves_unknown_files(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
+    install_codex(home)
+    unrelated = home / "skills/172x-principal-engineer/notes.md"
+    unrelated.write_text("keep\n", encoding="utf-8")
+    expected = managed_files(only=("ux-ui-designer",))
+
+    dry_run = install_codex(home, only=("ux-ui-designer",), dry_run=True)
+
+    assert any(action == "DELETE" for action, _, _ in dry_run)
+    assert _installed_known_files(home) == set(managed_files())
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+
+    install_codex(home, only=("ux-ui-designer",))
+    repeated = install_codex(home, only=("ux-ui-designer",))
+
+    assert _installed_known_files(home) == set(expected)
+    assert all(
+        (home / relative).read_bytes() == contents for relative, contents in expected.items()
+    )
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+    assert all(action == "UNCHANGED" for action, _, _ in repeated)
+
+
+def test_focused_selection_reconciles_from_one_agent_to_another(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
+    install_codex(home, only=("principal-codebase-reviewer",))
+    unrelated = home / "skills/unrelated/SKILL.md"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("keep\n", encoding="utf-8")
+    expected = managed_files(only=("ux-ui-designer",))
+
+    install_codex(home, only=("ux-ui-designer",))
+
+    assert _installed_known_files(home) == set(expected)
+    assert not (home / "skills/172x-principal-codebase-reviewer/SKILL.md").exists()
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+    _assert_support_paths_are_closed(expected)
+
+
+def test_modified_stale_file_conflicts_until_force_explicitly_removes_it(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
+    install_codex(home, only=("principal-codebase-reviewer",))
+    modified = home / "skills/172x-principal-codebase-reviewer/SKILL.md"
+    modified.write_text("user modification\n", encoding="utf-8")
+    unrelated = modified.parent / "notes.md"
+    unrelated.write_text("keep\n", encoding="utf-8")
+
+    with pytest.raises(LibraryError, match="172x-principal-codebase-reviewer/SKILL.md"):
+        install_codex(home, only=("ux-ui-designer",))
+
+    assert modified.read_text(encoding="utf-8") == "user modification\n"
+    assert not (home / "skills/172x-ux-ui-designer").exists()
+
+    dry_run = install_codex(home, only=("ux-ui-designer",), force=True, dry_run=True)
+
+    assert ("DELETE", Path("skills/172x-principal-codebase-reviewer/SKILL.md"), b"") in dry_run
+    assert modified.read_text(encoding="utf-8") == "user modification\n"
+
+    install_codex(home, only=("ux-ui-designer",), force=True)
+
+    assert _installed_known_files(home) == set(managed_files(only=("ux-ui-designer",)))
+    assert not modified.exists()
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+
+
+def test_global_install_conflicts_are_all_or_nothing_and_force_is_namespaced(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
+    conflicting = home / "skills/172x-agents/SKILL.md"
     conflicting.parent.mkdir(parents=True)
     conflicting.write_text("user content\n", encoding="utf-8")
-    unrelated = tmp_path / ".agents/skills/other/SKILL.md"
+    unrelated = home / "skills/other/SKILL.md"
     unrelated.parent.mkdir(parents=True)
     unrelated.write_text("keep\n", encoding="utf-8")
 
     with pytest.raises(LibraryError, match="conflicts"):
-        install_codex(tmp_path)
+        install_codex(home)
 
     assert conflicting.read_text(encoding="utf-8") == "user content\n"
-    assert not (tmp_path / ".codex/agents").exists()
-    install_codex(tmp_path, force=True)
+    install_codex(home, force=True)
     assert conflicting.read_text(encoding="utf-8") != "user content\n"
     assert unrelated.read_text(encoding="utf-8") == "keep\n"
 
 
-def test_workflow_selection_requires_current_installation(tmp_path: Path) -> None:
-    with pytest.raises(LibraryError, match="agents install codex"):
-        select_workflow(tmp_path, "dev")
-
-    install_configured_codex(tmp_path, default_profile())
-    path = select_workflow(tmp_path, "dev")
-
-    assert path.read_text(encoding="utf-8") == "dev\n"
-    assert active_workflow(tmp_path) == "dev"
-
-
-def test_install_refuses_managed_path_symlinks(tmp_path: Path) -> None:
+def test_global_install_refuses_managed_path_symlinks(tmp_path: Path) -> None:
+    home = tmp_path / "codex-home"
     outside = tmp_path / "outside"
+    home.mkdir()
     outside.mkdir()
-    (tmp_path / ".agents").symlink_to(outside, target_is_directory=True)
+    (home / "skills").symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(LibraryError, match="conflicts"):
-        install_codex(tmp_path)
+        install_codex(home)
 
     assert list(outside.iterdir()) == []
 
 
-def test_configured_install_owns_profile_as_well_as_codex_files(tmp_path: Path) -> None:
-    first = install_configured_codex(tmp_path, default_profile())
-    second = install_configured_codex(tmp_path, default_profile())
+def test_global_uninstall_removes_only_known_forge_skills_and_dry_run_is_safe(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
+    unrelated = home / "skills/another-skill/SKILL.md"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("keep\n", encoding="utf-8")
+    install_codex(home)
 
-    assert all(action == "CREATE" for action, _, _ in first)
-    assert all(action == "UNCHANGED" for action, _, _ in second)
-    assert configured_integration_current(tmp_path)
-    (tmp_path / "172x.toml").write_text("user configuration\n", encoding="utf-8")
-    assert not configured_integration_current(tmp_path)
-    with pytest.raises(LibraryError, match="conflicts in managed paths.*172x.toml"):
-        install_configured_codex(tmp_path, default_profile())
+    dry_run = uninstall_codex(home, dry_run=True)
 
+    assert any(
+        action == "DELETE" and path == Path("skills/172x-agents") for action, path, _ in dry_run
+    )
+    assert (home / "skills/172x-principal-architect/SKILL.md").is_file()
 
-def test_force_refresh_removes_renamed_managed_agent_files(tmp_path: Path) -> None:
-    legacy_skill = tmp_path / ".agents/skills/172x-brief/SKILL.md"
-    legacy_skill.parent.mkdir(parents=True)
-    legacy_skill.write_text("old managed skill\n", encoding="utf-8")
-    legacy_toml = tmp_path / ".codex/agents/172x-brief.toml"
-    legacy_toml.parent.mkdir(parents=True)
-    legacy_toml.write_text('name = "old"\n', encoding="utf-8")
+    uninstall_codex(home)
 
-    with pytest.raises(LibraryError, match="172x-brief"):
-        install_codex(tmp_path)
-
-    install_codex(tmp_path, force=True)
-
-    assert not legacy_skill.exists()
-    assert not legacy_toml.exists()
-    assert (tmp_path / ".agents/skills/172x-brief-author/SKILL.md").is_file()
+    assert unrelated.read_text(encoding="utf-8") == "keep\n"
+    assert not (home / "skills/172x-agents").exists()
+    assert not (home / "skills/172x-principal-architect").exists()
 
 
-def test_install_projects_a_valid_custom_workflow_as_a_native_skill(tmp_path: Path) -> None:
-    workflow = tmp_path / ".172x/workflows/customer-feedback.md"
-    workflow.parent.mkdir(parents=True)
-    workflow.write_text(
-        """---
-id: customer-feedback
-name: Customer Feedback Workflow
-description: Turns validated customer feedback into independently reviewed fixes.
-version: 1
----
-## Purpose
-Turn validated feedback into a reviewable fix.
+def test_global_uninstall_can_target_one_capability_and_refuses_modified_skill(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "codex-home"
+    install_codex(home)
 
-## Inputs
-Customer feedback, repository context, and acceptance criteria.
+    uninstall_codex(home, only=("principal-architect",))
 
-## Participating agents
-- `discovery-specialist`
-- `principal-engineer`
-- `qa-engineer`
-- `pr-reviewer`
+    assert not (home / "skills/172x-principal-architect").exists()
+    assert (home / "skills/172x-agents/SKILL.md").is_file()
+    modified = home / "skills/172x-principal-engineer/SKILL.md"
+    modified.write_text("modified\n", encoding="utf-8")
 
-## Flow
-1. `discovery-specialist` bounds the reported problem.
-2. `principal-engineer` implements the agreed fix.
-3. `qa-engineer` verifies the acceptance criteria.
-4. `pr-reviewer` returns a local recommendation for the human.
+    with pytest.raises(LibraryError, match="uninstall has conflicts"):
+        uninstall_codex(home, only=("principal-engineer",))
 
-## Parallel work
-No work is parallel because each handoff is required.
+    uninstall_codex(home, only=("principal-engineer",), force=True)
 
-## Feedback loops
-QA or review evidence returns to `principal-engineer` at most twice.
+    assert not modified.exists()
 
-## Human gates
-The human approves proceeding after discovery and decides whether to merge.
 
-## Completion criteria
-The scope, implementation, QA evidence, review recommendation, and human decision exist.
+def test_workflow_selection_uses_global_install_and_local_selection_state(
+    monkeypatch, tmp_path: Path
+) -> None:
+    home = tmp_path / "codex-home"
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.setenv("CODEX_HOME", str(home))
 
-## Failure and escalation
-Stop for the human when feedback is ambiguous or two return cycles are exhausted.
-""",
-        encoding="utf-8",
+    with pytest.raises(LibraryError, match="agents install codex"):
+        select_workflow(project, "dev")
+
+    install_codex(home)
+    path = select_workflow(project, "dev")
+
+    assert path.read_text(encoding="utf-8") == "dev\n"
+    assert active_workflow(project) == "dev"
+
+
+def test_workflow_selection_keeps_local_state_out_of_git_status(
+    monkeypatch, tmp_path: Path
+) -> None:
+    home = tmp_path / "codex-home"
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / ".git").mkdir()
+    monkeypatch.setenv("CODEX_HOME", str(home))
+    install_codex(home)
+    monkeypatch.setattr("agent_workflows.profiles.shutil.which", lambda value: "/usr/bin/git")
+    monkeypatch.setattr(
+        "agent_workflows.profiles.subprocess.run",
+        lambda *_args, **_kwargs: type(
+            "Result", (), {"returncode": 0, "stdout": ".git/info/exclude\n"}
+        )(),
     )
 
-    install_codex(tmp_path)
+    select_workflow(project, "dev")
 
-    skill = (tmp_path / ".agents/skills/172x-customer-feedback/SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    assert "# 172X · Customer Feedback" in skill
-    assert "references/workflows/custom/customer-feedback.md" in skill
-    assert (
-        tmp_path / ".agents/skills/172x-agents/references/workflows/custom/customer-feedback.md"
-    ).is_file()
-    assert (tmp_path / ".agents/skills/172x-workflow-composer/SKILL.md").is_file()
+    assert (project / ".git/info/exclude").read_text(encoding="utf-8") == ".172x/\n"
+
+
+def _assert_support_paths_are_closed(files: dict[Path, bytes]) -> None:
+    support_root = Path("skills/172x-agents")
+    for relative, contents in files.items():
+        if relative.suffix not in {".md", ".mmd", ".toml", ".yaml"}:
+            continue
+        for support_path in SUPPORT_PATH.findall(contents.decode("utf-8")):
+            assert support_root / support_path in files, (relative, support_path)
+
+
+def _installed_known_files(home: Path) -> set[Path]:
+    return {relative for relative in managed_files() if (home / relative).is_file()}

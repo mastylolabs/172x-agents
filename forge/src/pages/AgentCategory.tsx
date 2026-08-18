@@ -29,7 +29,8 @@ export default function AgentCategory({ domain }: { domain: Domain }) {
         !q ||
         a.name.toLowerCase().includes(q) ||
         a.summary.toLowerCase().includes(q) ||
-        a.useWhen.toLowerCase().includes(q)
+        a.useWhen.toLowerCase().includes(q) ||
+        a.doNotUseWhen.toLowerCase().includes(q)
       return matchesFilter && matchesQuery
     })
   }, [all, query, filter])
