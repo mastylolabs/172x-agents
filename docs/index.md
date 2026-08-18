@@ -51,4 +51,4 @@ Use the complete workflow or create a smaller Markdown workflow containing only 
 - No workflow server, database, or bundled MCP service
 
 [Get started](getting-started.md), browse the [agent catalog](agents.md), or read the
-[architecture](ARCHITECTURE.md).
+[architecture](ARCHITECTURE.md) or [distribution contract](DISTRIBUTION.md).

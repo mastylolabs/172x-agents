@@ -17,7 +17,8 @@ If documents disagree, use the narrowest v0.1 interpretation and report the conf
 
 172X Agents v0.1 is a Markdown-first library of composable agents and workflows with:
 
-- a small independently installable Python CLI;
+- a small independently installable CLI whose implementation is Python source but whose end-user
+  release is a standalone platform executable;
 - an optional product command group for the separate public `172x` CLI;
 - global Codex skill installation and optional ignored local activation contexts;
 - a repository-scoped Codex workflow skill;
@@ -45,7 +46,9 @@ Do not add any of the following in v0.1:
 - live GitHub mutation other than the narrowly scoped, explicitly opted-in branch/PR, review-thread, approval, and protected merge actions documented for `dev-loop`;
 - a generic host abstraction or adapter hierarchy;
 - Pipeline migration;
-- package publishing or website deployment;
+- unapproved package publishing or website deployment. The approved distribution boundary is
+  manual PyPI compatibility publishing plus versioned GitHub Release standalone artifacts
+  documented in `RELEASING.md`;
 - license selection without owner direction.
 
 Do not create placeholders, empty abstractions, feature flags, interfaces, database models, or configuration fields for those future ideas.
@@ -205,6 +208,8 @@ Allowed responsibilities:
 - optionally launch the local `codex` executable with an initial skill prompt;
 - make the narrowly configured `dev-loop` branch/PR, review-thread, approval, and protected merge actions through the local `git` and `gh` executables;
 - diagnose whether installed managed files match bundled content;
+- create deterministic standalone release archives, manifests, and checksums without credentials
+  or deployment side effects;
 - expose the Agents Typer application through a `172x.commands` entry point.
 
 Disallowed responsibilities:
@@ -294,6 +299,8 @@ Test behavior at the smallest useful boundary:
 - the standalone `agents` and `172x-agents` commands share one application;
 - the Agents application mounts beneath a synthetic `172x agents` root;
 - workflow completion, CLI help, and completion generation work;
+- standalone release packaging preserves executable contents, emits checksums and a closed manifest,
+  and the POSIX installer validates latest and pinned dry-run plus shell syntax behavior;
 - dev-loop GitHub gates reject missing opt-in, unresolved review threads, non-passing checks, non-approved reviews, and unsafe PR state;
 - dev-loop merge uses only the checked PR head and never uses an administrator or auto-merge flag;
 - Forge catalog generation covers every canonical agent/workflow and derives positive and negative
@@ -309,6 +316,8 @@ Do not create mock workflow hosts or simulated agent runtimes.
 - Use a native `172X · …` skill from `/skills` for direct workflow or specialist selection. The optional catalog skill accepts `$172x run <workflow>`.
 - Clearly separate local review recommendations, GitHub command acceptance, merge-queue state, and an actual confirmed merge.
 - Keep install instructions short.
+- Document GitHub Releases as the source of record; installers default to the latest stable release,
+  support an explicit pinned version, and verify checksums before writing.
 - Preserve the distinction between the 172X product name, repository name, Python distribution name, and import package.
 - Do not publish or link `.private/` analysis or progress material.
 - Regenerate `forge/src/data/catalog.generated.json` only through

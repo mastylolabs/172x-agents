@@ -1,7 +1,20 @@
 # Releasing 172X Agents
 
-This repository never publishes to PyPI on a pull request or a merge to `main`. Publishing is a
-maintainer-controlled, manual action.
+The primary distribution is a standalone executable published through GitHub Releases. PyPI remains
+an optional, maintainer-controlled compatibility channel and is never published on a pull request
+or a merge to `main`.
+
+## Primary standalone release
+
+1. Change the project version in `pyproject.toml` and refresh `uv.lock` when needed.
+2. Merge the version change to `main` after local and GitHub checks pass.
+3. Create and push an annotated `vMAJOR.MINOR.PATCH` tag.
+4. Let `release.yml` build the macOS, Linux, and Windows executables, generate deterministic
+   archives, checksums, and `manifest.json`, and publish the GitHub Release.
+5. Verify the GitHub assets, checksums, and manifest before announcing the release.
+
+No Cloudflare credentials or artifact mirror are involved in the release process. Forge is a
+separate Cloudflare Pages catalog and is not the binary distribution origin.
 
 ## One-time PyPI and GitHub setup
 

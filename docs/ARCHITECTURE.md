@@ -43,6 +43,17 @@ and escalation behavior. Workflow transitions pass identified artifacts and comp
 without copying specialist procedures. Forge derives both `use when` and `do not use when` from the
 labeled canonical routing section; generated catalog JSON is not authored by hand.
 
+## Distribution boundary
+
+GitHub Releases are the source of record for standalone executables. Each release contains
+deterministic platform archives, per-archive SHA-256 files, an aggregate `SHA256SUMS`, a versioned
+`manifest.json`, and the pinned installer scripts. The installer downloads directly from the
+selected GitHub Release and verifies the checksum before writing an executable.
+
+The build environment may use Python and PyInstaller, but those are release-build dependencies only.
+The installed `agents` executable contains the CLI and packaged canonical library. Project language
+gates remain a separate local activation concern and are never inferred from the installer runtime.
+
 ## Evidence, handoffs, and evaluation
 
 The common evidence guide separates facts, observations, inference, assumptions, decisions, and

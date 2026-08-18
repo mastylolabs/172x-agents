@@ -46,6 +46,7 @@ nav:
   - Architecture: ARCHITECTURE.md
   - CLI: CLI.md
   - Codex integration: CODEX_INTEGRATION.md
+  - Distribution: DISTRIBUTION.md
   - Experimental status: DEV_LOOP_VALIDATION.md
 
 strict: true

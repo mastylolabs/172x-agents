@@ -20,6 +20,9 @@ On Windows, save and inspect the PowerShell installer before running it:
 irm https://forge.172x.ai/install.ps1 | iex
 ```
 
+See the [distribution contract](docs/DISTRIBUTION.md) for release assets, checksum verification,
+and pinned installation.
+
 Install Forge capabilities once for Codex. This is personal, global installation; it does not
 select a language or modify a project:
 
@@ -114,6 +117,7 @@ live validation before it can be treated as fully autonomous. Read the
 - [Architecture](docs/ARCHITECTURE.md)
 - [CLI contract](docs/CLI.md)
 - [Codex integration](docs/CODEX_INTEGRATION.md)
+- [Distribution](docs/DISTRIBUTION.md)
 - [Experimental status](docs/DEV_LOOP_VALIDATION.md)
 
 ## Contributing and governance
@@ -123,5 +127,6 @@ live validation before it can be treated as fully autonomous. Read the
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), and see
 [TRADEMARKS.md](TRADEMARKS.md) for brand-use terms.
 
-Maintainers use the manual, approval-gated [release procedure](RELEASING.md). Pull requests and
-merges to `main` never publish to PyPI.
+Maintainers use the manual, approval-gated [release procedure](RELEASING.md). GitHub Releases are
+the primary distribution path; the optional PyPI workflow is manual and never runs on a pull
+request or a merge to `main`.

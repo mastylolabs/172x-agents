@@ -14,6 +14,9 @@ Windows users can use the pinned PowerShell installer:
 irm https://forge.172x.ai/install.ps1 | iex
 ```
 
+See the [distribution contract](DISTRIBUTION.md) for checksum verification, pinned installation,
+and the release process.
+
 To contribute from a local checkout instead:
 
 ```bash
