@@ -25,9 +25,9 @@ Every agent has a scalar frontmatter header and operational sections for mission
 ## Distribution boundary
 
 GitHub Releases are the source of record for standalone executables. Each release contains
-deterministic platform archives, per-archive SHA-256 files, an aggregate `SHA256SUMS`, and a
-versioned `manifest.json`. Cloudflare R2 mirrors the same immutable bytes behind the custom domain
-`agents.172x.ai`; the installer verifies the checksum before writing an executable.
+deterministic platform archives, per-archive SHA-256 files, an aggregate `SHA256SUMS`, a versioned
+`manifest.json`, and the pinned installer scripts. The installer downloads directly from the
+selected GitHub Release and verifies the checksum before writing an executable.
 
 The build environment may use Python and PyInstaller, but those are release-build dependencies only.
 The installed `agents` executable contains the CLI and packaged canonical library. Project language
@@ -74,6 +74,7 @@ There is no hidden run database. Safe recovery comes from visible artifacts: the
 
 172X does not add a workflow engine, database, scheduler, provider API client, generic host abstraction,
 hosted application, credentials, telemetry, or a background process. Versioned standalone release
-artifacts and a manually verified Cloudflare mirror are allowed distribution surfaces; the repository
-does not store Cloudflare credentials or deploy as a side effect of a normal build. The local GitHub
+artifacts are the only binary distribution surface; Forge's separate Cloudflare Pages catalog is
+not an artifact mirror and the repository does not store deployment credentials or deploy as a side
+effect of a normal build. The local GitHub
 gate uses `gh` with argument lists and `shell=False`; it does not use administrator bypass or auto-merge.

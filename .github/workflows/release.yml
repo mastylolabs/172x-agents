@@ -117,7 +117,7 @@ jobs:
           python scripts/release_manifest.py create \
             --version "${GITHUB_REF_NAME}" \
             --artifacts-dir release \
-            --base-url "https://agents.172x.ai/releases/${GITHUB_REF_NAME}" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" \
             --output release/manifest.json
           python scripts/release_manifest.py verify \
             --manifest release/manifest.json \

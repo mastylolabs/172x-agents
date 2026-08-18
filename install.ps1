@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Version = $env:AGENTS_172X_VERSION,
-    [string]$BaseUrl = $(if ($env:AGENTS_172X_RELEASE_BASE_URL) { $env:AGENTS_172X_RELEASE_BASE_URL } else { "https://agents.172x.ai/releases" }),
+    [string]$BaseUrl = $(if ($env:AGENTS_172X_RELEASE_BASE_URL) { $env:AGENTS_172X_RELEASE_BASE_URL } else { "https://github.com/mastylolabs/172x-agents/releases/download" }),
     [string]$Target = "windows-x64",
     [string]$Prefix = $(if ($env:AGENTS_172X_INSTALL_PREFIX) { $env:AGENTS_172X_INSTALL_PREFIX } else { Join-Path $env:LOCALAPPDATA "172x-agents" }),
     [switch]$DryRun,

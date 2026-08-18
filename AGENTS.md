@@ -48,8 +48,8 @@ Do not add any of the following in v0.1:
 - a generic host abstraction or adapter hierarchy;
 - Pipeline migration;
 - unapproved package publishing or website deployment. The approved distribution boundary is
-  manual PyPI compatibility publishing plus versioned GitHub Release and Cloudflare-hosted
-  standalone artifacts documented in `RELEASING.md`;
+  manual PyPI compatibility publishing plus versioned GitHub Release standalone artifacts
+  documented in `RELEASING.md`;
 - license selection without owner direction.
 
 Do not create placeholders, empty abstractions, feature flags, interfaces, database models, or configuration fields for those future ideas.
@@ -239,8 +239,8 @@ Do not create mock workflow hosts or simulated agent runtimes.
 - Use a native `172X · …` skill from `/skills` for direct workflow or specialist selection. The optional catalog skill accepts `$172x run <workflow>`.
 - Clearly separate local review recommendations, GitHub command acceptance, merge-queue state, and an actual confirmed merge.
 - Keep install instructions short.
-- Document GitHub Releases as the source of record and `agents.172x.ai` as the Cloudflare delivery
-  mirror; installers must require a pinned version and verify checksums before writing.
+- Document GitHub Releases as the source of record; installers must require a pinned version and
+  verify checksums before writing.
 - Preserve the distinction between the 172X product name, repository name, Python distribution name, and import package.
 
 ## Change discipline

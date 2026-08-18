@@ -67,7 +67,7 @@ def test_manifest_creation_and_verification_are_closed_to_artifacts(tmp_path: Pa
     package_release.package(windows, "windows-x64", release)
 
     manifest = release_manifest.build_manifest(
-        "v0.1.0", release, "https://agents.172x.ai/releases/v0.1.0"
+        "v0.1.0", release, "https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0"
     )
     manifest_path = release / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -95,6 +95,8 @@ def test_manifest_rejects_checksum_changes(tmp_path: Path) -> None:
 
 
 def test_installers_support_pinned_dry_run() -> None:
+    env = os.environ.copy()
+    env.pop("AGENTS_172X_RELEASE_BASE_URL", None)
     result = subprocess.run(
         [
             "sh",
@@ -108,10 +110,11 @@ def test_installers_support_pinned_dry_run() -> None:
         check=True,
         capture_output=True,
         text=True,
-        env={**os.environ, "AGENTS_172X_RELEASE_BASE_URL": "https://example.test/releases"},
+        env=env,
     )
     assert "agents-linux-x64.tar.gz" in result.stdout
     assert "v0.1.0" in result.stdout
+    assert "github.com/mastylolabs/172x-agents/releases/download" in result.stdout
 
 
 def test_install_sh_verifies_and_installs_local_fixture(tmp_path: Path) -> None:

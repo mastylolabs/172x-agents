@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-DEFAULT_BASE_URL="https://agents.172x.ai/releases"
+DEFAULT_BASE_URL="https://github.com/mastylolabs/172x-agents/releases/download"
 VERSION=""
 BASE_URL="${AGENTS_172X_RELEASE_BASE_URL:-$DEFAULT_BASE_URL}"
 TARGET=""
@@ -15,7 +15,7 @@ Usage: install.sh --version vMAJOR.MINOR.PATCH [options]
 
 Options:
   --version VERSION   Immutable release tag to install (required)
-  --base-url URL      Release root (default: https://agents.172x.ai/releases)
+  --base-url URL      Release root (default: GitHub Releases)
   --target TARGET     Override target, for example linux-x64 or darwin-arm64
   --prefix PATH       User-local install prefix (default: ~/.local)
   --dry-run           Print URLs and destination without downloading or writing

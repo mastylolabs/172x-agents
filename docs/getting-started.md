@@ -5,19 +5,19 @@
 Install the standalone CLI from a pinned release; Python is not required on the user's machine:
 
 ```bash
-curl --fail --location --remote-name https://agents.172x.ai/install.sh
+curl --fail --location --remote-name https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.sh
 sh install.sh --version v0.1.0
 ```
 
 Windows users can download and inspect the PowerShell installer before running it:
 
 ```powershell
-irm https://agents.172x.ai/install.ps1 -OutFile install.ps1
+irm https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.ps1 -OutFile install.ps1
 .\install.ps1 -Version v0.1.0
 ```
 
-See [Distribution](DISTRIBUTION.md) for checksum verification, release mirrors, and safer
-convenience forms. To contribute from a local checkout instead:
+See [Distribution](DISTRIBUTION.md) for checksum verification and safer convenience forms. To
+contribute from a local checkout instead:
 
 ```bash
 python3.12 -m venv .venv
