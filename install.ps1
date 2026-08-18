@@ -14,22 +14,30 @@ function Fail([string]$Message) {
     throw "install.ps1: $Message"
 }
 
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    Fail "-Version is required; pin an immutable release"
-}
-if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
-    Fail "version must look like vMAJOR.MINOR.PATCH"
-}
-if ($Version.Contains('/') -or $Version.Contains('..')) {
-    Fail "version contains an unsafe path"
-}
 if ($Target -ne "windows-x64") {
     Fail "unsupported target: $Target"
 }
 
 $BaseUrl = $BaseUrl.TrimEnd('/')
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    if ($BaseUrl -ne "https://github.com/mastylolabs/172x-agents/releases/download") {
+        Fail "-Version is required with a custom -BaseUrl"
+    }
+    $ReleaseUrl = "https://github.com/mastylolabs/172x-agents/releases/latest/download"
+    $ReleaseLabel = "latest stable"
+}
+else {
+    if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
+        Fail "version must look like vMAJOR.MINOR.PATCH"
+    }
+    if ($Version.Contains('/') -or $Version.Contains('..')) {
+        Fail "version contains an unsafe path"
+    }
+    $ReleaseUrl = "$BaseUrl/$Version"
+    $ReleaseLabel = $Version
+}
 $Archive = "agents-$Target.zip"
-$ArchiveUrl = "$BaseUrl/$Version/$Archive"
+$ArchiveUrl = "$ReleaseUrl/$Archive"
 $ChecksumUrl = "$ArchiveUrl.sha256"
 $Destination = Join-Path $Prefix "agents.exe"
 
@@ -70,7 +78,7 @@ try {
     }
     New-Item -ItemType Directory -Force -Path $Prefix | Out-Null
     Copy-Item -LiteralPath $Extracted -Destination $Destination -Force
-    Write-Output "installed $Version to $Destination"
+    Write-Output "installed $ReleaseLabel to $Destination"
     Write-Output "run: $Destination install codex --dry-run"
 }
 finally {

@@ -117,6 +117,42 @@ def test_installers_support_pinned_dry_run() -> None:
     assert "github.com/mastylolabs/172x-agents/releases/download" in result.stdout
 
 
+def test_install_sh_defaults_to_latest_stable_release() -> None:
+    env = os.environ.copy()
+    env.pop("AGENTS_172X_RELEASE_BASE_URL", None)
+    result = subprocess.run(
+        [
+            "sh",
+            str(ROOT / "install.sh"),
+            "--target",
+            "linux-x64",
+            "--dry-run",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert "releases/latest/download/agents-linux-x64.tar.gz" in result.stdout
+
+
+def test_install_sh_requires_version_for_custom_release_root() -> None:
+    result = subprocess.run(
+        [
+            "sh",
+            str(ROOT / "install.sh"),
+            "--base-url",
+            "https://example.test/releases",
+            "--dry-run",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "--version is required with a custom --base-url" in result.stderr
+
+
 def test_install_sh_verifies_and_installs_local_fixture(tmp_path: Path) -> None:
     release_root = tmp_path / "releases"
     binary = _executable(tmp_path / "fixture-agents")

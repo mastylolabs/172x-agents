@@ -44,7 +44,7 @@ export default function Install() {
         <PageHeading
           eyebrow="Guided setup"
           title="Install 172X"
-          description="Install a pinned standalone CLI, then add selected Forge capabilities to this project. Python is not required."
+          description="Install the latest stable standalone CLI, then add selected Forge capabilities to this project. Python is not required."
         />
       </div>
 
@@ -159,18 +159,20 @@ export default function Install() {
             </h3>
             <CommandBlock
               label="1 · Install the CLI (macOS/Linux)"
-              command="curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0"
+              command="curl -fsSL https://forge.172x.ai/install.sh | sh"
               compact
             />
             <CommandBlock
               label="1 · Install the CLI (Windows)"
-              command="& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0"
+              command="irm https://forge.172x.ai/install.ps1 | iex"
               compact
             />
             <CommandBlock label="2 · Add capabilities" command={installCommand} compact />
 
             <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-              The pinned installer downloads a standalone 172X CLI; Python is not required.{' '}
+              The installer downloads the latest stable 172X CLI by default; pass{' '}
+              <span className="font-mono text-foreground">--version</span> to pin a release. Python
+              is not required.{' '}
               <span className="font-mono text-foreground">agents install</span>{' '}
               adds selected Forge capabilities to this project.
             </div>

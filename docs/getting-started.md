@@ -2,16 +2,16 @@
 
 ## Install the CLI
 
-Install the standalone CLI from a pinned release; Python is not required on the user's machine:
+Install the latest stable standalone CLI; Python is not required on the user's machine:
 
 ```bash
-curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
+curl -fsSL https://forge.172x.ai/install.sh | sh
 ```
 
 Windows users can download and inspect the PowerShell installer before running it:
 
 ```powershell
-& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0
+irm https://forge.172x.ai/install.ps1 | iex
 ```
 
 See [Distribution](DISTRIBUTION.md) for checksum verification and safer convenience forms. To

@@ -7,7 +7,7 @@ Markdown-first, composable AI-agent workflows for Codex.
 ## Start small
 
 ```bash
-curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
+curl -fsSL https://forge.172x.ai/install.sh | sh
 agents install codex
 agents --workflow dev
 ```

@@ -225,7 +225,7 @@ Test behavior at the smallest useful boundary:
 - the Agents application mounts beneath a synthetic `172x agents` root;
 - workflow completion, CLI help, and completion generation work;
 - standalone release packaging preserves executable contents, emits checksums and a closed manifest,
-  and the POSIX installer validates pinned dry-run and shell syntax behavior;
+  and the POSIX installer validates latest and pinned dry-run plus shell syntax behavior;
 - dev-loop GitHub gates reject missing opt-in, unresolved review threads, non-passing checks, non-approved reviews, and unsafe PR state;
 - dev-loop merge uses only the checked PR head and never uses an administrator or auto-merge flag;
 - `mkdocs build --strict` succeeds.
@@ -239,8 +239,8 @@ Do not create mock workflow hosts or simulated agent runtimes.
 - Use a native `172X · …` skill from `/skills` for direct workflow or specialist selection. The optional catalog skill accepts `$172x run <workflow>`.
 - Clearly separate local review recommendations, GitHub command acceptance, merge-queue state, and an actual confirmed merge.
 - Keep install instructions short.
-- Document GitHub Releases as the source of record; installers must require a pinned version and
-  verify checksums before writing.
+- Document GitHub Releases as the source of record; installers default to the latest stable release,
+  support an explicit pinned version, and verify checksums before writing.
 - Preserve the distinction between the 172X product name, repository name, Python distribution name, and import package.
 
 ## Change discipline

@@ -22,9 +22,15 @@ supported operating-system and architecture target, a `.sha256` file beside ever
 The build runner uses PyInstaller only while producing release artifacts. The resulting
 executable contains the CLI and canonical library; PyInstaller is not an end-user dependency.
 
-## Pinned installation
+## Installation
 
-The short Forge command streams the installer while keeping the binary release explicit:
+The short Forge command installs the latest stable release:
+
+```bash
+curl -fsSL https://forge.172x.ai/install.sh | sh
+```
+
+Pin an exact release when reproducibility matters:
 
 ```bash
 curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
@@ -42,7 +48,7 @@ sh install.sh --version v0.1.0
 Windows convenience form:
 
 ```powershell
-& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0
+irm https://forge.172x.ai/install.ps1 | iex
 ```
 
 Windows inspection-first form:
@@ -52,9 +58,10 @@ irm https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.
 .\install.ps1 -Version v0.1.0
 ```
 
-Every installer requires a pinned version, downloads the archive and its checksum from the
-GitHub Release, verifies SHA-256 before writing, defaults to a user-local destination, supports
-`--dry-run`/`-DryRun`, and does not install Python or modify project dependencies.
+The installer uses GitHub's latest stable release by default or an explicit `--version`/`-Version`
+override. It downloads the archive and its checksum from the GitHub Release, verifies SHA-256
+before writing, defaults to a user-local destination, supports `--dry-run`/`-DryRun`, and does not
+install Python or modify project dependencies.
 
 For a local fixture or mirror, override the release root:
 
@@ -69,7 +76,7 @@ all target executables, creates deterministic archives and checksums, generates 
 manifest, and publishes the GitHub Release with the installer scripts attached.
 
 No Cloudflare artifact bucket or deployment credential is required. The existing Forge Pages build
-publishes the canonical installer scripts at `forge.172x.ai`; those scripts download the pinned
+publishes the canonical installer scripts at `forge.172x.ai`; those scripts download the selected
 binary and checksum directly from GitHub Releases.
 
 ## Optional PyPI compatibility

@@ -5,7 +5,7 @@
 The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an
 agent runtime, track runs, call model APIs, or store credentials.
 
-The CLI is distributed to end users as a standalone executable through the pinned installers in
+The CLI is distributed to end users as a standalone executable through the checksum-verifying installers in
 [Distribution](DISTRIBUTION.md). Python is used to develop and build the source package, not as a
 runtime prerequisite for a user installing 172X Agents.
 

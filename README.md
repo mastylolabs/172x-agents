@@ -8,17 +8,17 @@ the runtime and coordinator; 172X defines the roles, handoffs, evidence, and bou
 
 ## Install
 
-Install the standalone CLI from a pinned GitHub Release. The end-user
+Install the latest stable standalone CLI. The end-user
 install does not require Python, `pip`, or `pipx`:
 
 ```bash
-curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
+curl -fsSL https://forge.172x.ai/install.sh | sh
 ```
 
 On Windows, save and inspect the PowerShell installer before running it:
 
 ```powershell
-& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0
+irm https://forge.172x.ai/install.ps1 | iex
 ```
 
 See the [distribution contract](docs/DISTRIBUTION.md) for checksum verification and release

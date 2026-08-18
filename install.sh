@@ -2,6 +2,7 @@
 set -eu
 
 DEFAULT_BASE_URL="https://github.com/mastylolabs/172x-agents/releases/download"
+LATEST_RELEASE_URL="https://github.com/mastylolabs/172x-agents/releases/latest/download"
 VERSION=""
 BASE_URL="${AGENTS_172X_RELEASE_BASE_URL:-$DEFAULT_BASE_URL}"
 TARGET=""
@@ -11,10 +12,10 @@ FORCE=0
 
 usage() {
     cat <<'EOF'
-Usage: install.sh --version vMAJOR.MINOR.PATCH [options]
+Usage: install.sh [options]
 
 Options:
-  --version VERSION   Immutable release tag to install (required)
+  --version VERSION   Immutable release tag to install (default: latest stable)
   --base-url URL      Release root (default: GitHub Releases)
   --target TARGET     Override target, for example linux-x64 or darwin-arm64
   --prefix PATH       User-local install prefix (default: ~/.local)
@@ -69,13 +70,16 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-[ -n "$VERSION" ] || die "--version is required; pin an immutable release"
-if ! printf '%s\n' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-    die "version must look like vMAJOR.MINOR.PATCH"
+if [ -n "$VERSION" ]; then
+    if ! printf '%s\n' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+        die "version must look like vMAJOR.MINOR.PATCH"
+    fi
+    case "$VERSION" in
+        */*|*..*) die "version contains an unsafe path" ;;
+    esac
+elif [ "${BASE_URL%/}" != "$DEFAULT_BASE_URL" ]; then
+    die "--version is required with a custom --base-url"
 fi
-case "$VERSION" in
-    */*|*..*) die "version contains an unsafe path" ;;
-esac
 
 if [ -z "$TARGET" ]; then
     os=$(uname -s)
@@ -97,7 +101,14 @@ case "$TARGET" in
 esac
 
 BASE_URL=${BASE_URL%/}
-archive_url="$BASE_URL/$VERSION/$archive"
+if [ -n "$VERSION" ]; then
+    release_url="$BASE_URL/$VERSION"
+    release_label="$VERSION"
+else
+    release_url="$LATEST_RELEASE_URL"
+    release_label="latest stable"
+fi
+archive_url="$release_url/$archive"
 checksum_url="$archive_url.sha256"
 destination="$PREFIX/bin/agents"
 
@@ -144,5 +155,5 @@ staged_destination="$destination.tmp.$$"
 cp "$extract_dir/agents" "$staged_destination"
 chmod 0755 "$staged_destination"
 mv -f "$staged_destination" "$destination"
-printf 'installed %s to %s\n' "$VERSION" "$destination"
+printf 'installed %s to %s\n' "$release_label" "$destination"
 printf 'run: %s install codex --dry-run\n' "$destination"
