@@ -1,4 +1,4 @@
-"""Supported 172X project profiles and their committed configuration."""
+"""Local, advisory 172X activation contexts and gate diagnostics."""
 
 from __future__ import annotations
 
@@ -13,20 +13,19 @@ from pathlib import Path
 
 from .library import LibraryError
 
-CONFIG_PATH = Path("172x.toml")
+CONTEXT_PATH = Path(".172x/contexts.toml")
 SUPPORTED_HOST = "codex"
 SUPPORTED_LANGUAGE = "python"
 SUPPORTED_SCM = "git"
 SUPPORTED_PROVIDER = "github"
 PLANNED_HOSTS = ("claude", "gemini")
-PLANNED_LANGUAGES = ("c++", "java", "c#", "rust")
+PLANNED_LANGUAGES = ("c++", "java", "c#", "rust", "typescript")
 PLANNED_PROVIDERS = ("gitlab", "bitbucket")
-PYPI_SIMPLE_INDEX = "https://pypi.org/simple"
 
 
 @dataclass(frozen=True)
 class ProjectProfile:
-    """The minimal project-owned choices that make a workflow reproducible."""
+    """The selected local language and quality contract for one project path."""
 
     host: str
     language: str
@@ -37,6 +36,14 @@ class ProjectProfile:
     base_branch: str
     merge_method: str
     merge_current_branch: bool
+
+
+@dataclass(frozen=True)
+class ActivationContext:
+    """One local activation entry rooted at a repository-relative path."""
+
+    path: Path
+    profile: ProjectProfile
 
 
 def _resource_text(parts: tuple[str, ...]) -> str:
@@ -64,7 +71,7 @@ def language_tools(language: str) -> tuple[str, ...]:
 
 
 def gate_commands(profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
-    """Return safe argument-list gate commands selected by the active profile."""
+    """Return fixed argument-list gate commands for the selected local contract."""
     data = _language_data(profile.language)
     commands: list[tuple[str, ...]] = []
     for tool in profile.gate_tools:
@@ -83,192 +90,48 @@ def gate_commands(profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
 
 
 def language_runner(target: Path, profile: ProjectProfile) -> tuple[str, ...]:
-    """Prefer the repository's existing Python command convention, when recognizable."""
+    """Recognize a project's runner without installing or selecting its package manager."""
     project = target.expanduser().resolve()
     if profile.language != "python":
         return ()
     if (project / "uv.lock").is_file():
-        return ("uv", "run")
+        return ("uv", "run", "--no-sync")
     if (project / "poetry.lock").is_file():
         return ("poetry", "run")
-    if (project / "hatch.toml").is_file():
-        return ("hatch", "run")
-    pyproject = project / "pyproject.toml"
-    if pyproject.is_file():
-        try:
-            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            return ()
-        if isinstance(data.get("tool"), dict) and "hatch" in data["tool"]:
-            return ("hatch", "run")
     return ()
 
 
-def uv_workspace_root(target: Path) -> Path | None:
-    """Return a parent UV workspace that explicitly includes this project, if any."""
-    project = target.expanduser().resolve()
-    for candidate in (project, *project.parents):
-        pyproject = candidate / "pyproject.toml"
-        if not pyproject.is_file():
-            continue
-        try:
-            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-        tool = data.get("tool")
-        uv = tool.get("uv") if isinstance(tool, dict) else None
-        workspace = uv.get("workspace") if isinstance(uv, dict) else None
-        members = workspace.get("members") if isinstance(workspace, dict) else None
-        if candidate == project:
-            if isinstance(members, list):
-                return candidate
-            continue
-        if not isinstance(members, list) or not all(isinstance(member, str) for member in members):
-            continue
-        if any(member.resolve() == project for member in _workspace_members(candidate, members)):
-            return candidate
-    return None
-
-
-def _workspace_members(root: Path, members: list[str]) -> tuple[Path, ...]:
-    paths: list[Path] = []
-    for pattern in members:
-        paths.extend(root.glob(pattern))
-    return tuple(paths)
-
-
 def active_gate_commands(target: Path, profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
-    """Return selected safe gate commands prefixed by the detected project runner."""
+    """Return selected fixed gate commands prefixed only by a detected existing runner."""
     runner = language_runner(target, profile)
     return tuple((*runner, *command) for command in gate_commands(profile))
 
 
-def gate_install_command(target: Path, profile: ProjectProfile) -> tuple[str, ...]:
-    """Return the safe project-local command that adds selected Python gate dependencies."""
-    project = target.expanduser().resolve()
-    workspace_root = uv_workspace_root(project)
-    if workspace_root is not None and workspace_root != project:
-        raise LibraryError(
-            f"refusing to install gate tools because this project is a UV workspace member of {workspace_root}; "
-            "UV would resolve that whole workspace. Move the playground outside the workspace or remove it from "
-            "the parent [tool.uv.workspace].members list, then retry."
-        )
-    runner = language_runner(project, profile)
-    if runner[:1] == ("uv",):
-        return ("uv", "add", "--dev", "--default-index", PYPI_SIMPLE_INDEX, *profile.gate_tools)
-    if runner[:1] == ("poetry",):
-        return ("poetry", "add", "--group", "dev", *profile.gate_tools)
-    if (
-        profile.language == "python"
-        and (project / "pyproject.toml").is_file()
-        and shutil.which("uv")
-    ):
-        return ("uv", "add", "--dev", "--default-index", PYPI_SIMPLE_INDEX, *profile.gate_tools)
-    raise LibraryError(
-        "cannot safely install selected Python gate tools: use an existing uv or Poetry project, "
-        "or add the tools through this repository's package manager first"
-    )
-
-
-def gate_tools_declared(target: Path, profile: ProjectProfile) -> bool:
-    """Return whether all selected Python gate tools are already project dependencies."""
-    pyproject = target.expanduser().resolve() / "pyproject.toml"
-    if not pyproject.is_file():
-        return False
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return False
-
-    declared: set[str] = set()
-
-    def collect(values: object) -> None:
-        if isinstance(values, list):
-            for value in values:
-                if isinstance(value, str):
-                    declared.add(
-                        value.split(";", 1)[0]
-                        .split("[", 1)[0]
-                        .split("=", 1)[0]
-                        .split(">", 1)[0]
-                        .split("<", 1)[0]
-                        .split("~", 1)[0]
-                        .strip()
-                        .casefold()
-                    )
-
-    project = data.get("project")
-    if isinstance(project, dict):
-        collect(project.get("dependencies"))
-        optional = project.get("optional-dependencies")
-        if isinstance(optional, dict):
-            for values in optional.values():
-                collect(values)
-    groups = data.get("dependency-groups")
-    if isinstance(groups, dict):
-        for values in groups.values():
-            collect(values)
-    tool = data.get("tool")
-    poetry = tool.get("poetry") if isinstance(tool, dict) else None
-    if isinstance(poetry, dict):
-        dev_dependencies = poetry.get("dev-dependencies")
-        if isinstance(dev_dependencies, dict):
-            declared.update(str(name).casefold() for name in dev_dependencies)
-        poetry_groups = poetry.get("group")
-        if isinstance(poetry_groups, dict):
-            for group in poetry_groups.values():
-                dependencies = group.get("dependencies") if isinstance(group, dict) else None
-                if isinstance(dependencies, dict):
-                    declared.update(str(name).casefold() for name in dependencies)
-
-    return set(profile.gate_tools).issubset(declared)
-
-
-def install_gate_tools(target: Path, profile: ProjectProfile) -> tuple[str, ...]:
-    """Add the selected known gate tools through the repository's detected package manager."""
-    project = target.expanduser().resolve()
-    if gate_tools_declared(project, profile):
-        return ()
-    command = gate_install_command(project, profile)
-    if shutil.which(command[0]) is None:
-        raise LibraryError(f"required package manager is not on PATH: {command[0]}")
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=project,
-            shell=False,
-            check=False,
-            timeout=180,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise LibraryError(
-            "timed out after 180 seconds while installing selected gate tools; check package-index access"
-        ) from error
-    if completed.returncode != 0:
-        raise LibraryError(
-            "could not install selected gate tools; see the package-manager output above for details"
-        )
-    return command
+def gate_probe_commands(target: Path, profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
+    """Return lightweight non-mutating availability probes for selected gate tools."""
+    runner = language_runner(target, profile)
+    return tuple((*runner, tool, "--version") for tool in profile.gate_tools)
 
 
 def capability_message(kind: str, value: str) -> str:
-    """Explain the supported first release without presenting future work as usable."""
+    """Explain the supported first release without presenting planned work as usable."""
     planned = {
         "host": PLANNED_HOSTS,
         "language": PLANNED_LANGUAGES,
         "provider": PLANNED_PROVIDERS,
     }.get(kind, ())
     if value in planned:
-        return f"{kind} '{value}' is planned but not implemented; supported {kind}: " + {
+        supported = {
             "host": SUPPORTED_HOST,
             "language": SUPPORTED_LANGUAGE,
             "provider": SUPPORTED_PROVIDER,
-        }.get(kind, "none")
+        }
+        return f"{kind} '{value}' is planned but not implemented; supported {kind}: {supported.get(kind, 'none')}"
     return f"unsupported {kind}: {value}"
 
 
 def validate_profile(profile: ProjectProfile) -> None:
-    """Reject any project profile that names an unsupported first-release capability."""
+    """Reject unsupported activation choices and arbitrary gate commands."""
     if profile.host != SUPPORTED_HOST:
         raise LibraryError(capability_message("host", profile.host))
     if profile.language != SUPPORTED_LANGUAGE:
@@ -285,10 +148,10 @@ def validate_profile(profile: ProjectProfile) -> None:
         raise LibraryError(
             f"unsupported {profile.language} gate tool(s): {', '.join(unknown_tools)}"
         )
-    if profile.change_request_kind != "pull_request":
-        raise LibraryError("change-request kind must be pull_request for the GitHub provider")
-    if profile.base_branch != "main":
-        raise LibraryError("change-request base_branch must be main in the first release")
+    if profile.change_request_kind != "pull_request" or profile.base_branch != "main":
+        raise LibraryError(
+            "the supported GitHub change-request policy is pull requests targeting main"
+        )
     if profile.merge_method not in {"merge", "rebase", "squash"}:
         raise LibraryError("change-request merge_method must be merge, rebase, or squash")
 
@@ -299,7 +162,7 @@ def default_profile(
     language: str = SUPPORTED_LANGUAGE,
     gate_tools: tuple[str, ...] | None = None,
 ) -> ProjectProfile:
-    """Build the supported default selection for a new project."""
+    """Build the supported local activation selection without modifying external tools."""
     profile = ProjectProfile(
         host=host,
         language=language,
@@ -315,92 +178,197 @@ def default_profile(
     return profile
 
 
-def project_toml(profile: ProjectProfile) -> bytes:
-    """Render the sole committed project configuration in a stable reviewed form."""
-    validate_profile(profile)
-    tools = ", ".join(f'"{tool}"' for tool in profile.gate_tools)
-    return (
-        "# 172X project profile. Commit this file so the team runs the same loop.\n\n"
-        "[host]\n"
-        f'id = "{profile.host}"\n\n'
-        "[language]\n"
-        f'id = "{profile.language}"\n\n'
-        "[scm]\n"
-        f'id = "{profile.scm}"\n\n'
-        "[provider]\n"
-        f'id = "{profile.provider}"\n\n'
-        "[gate]\n"
-        f"tools = [{tools}]\n\n"
-        "[change_request]\n"
-        f'kind = "{profile.change_request_kind}"\n'
-        f'base_branch = "{profile.base_branch}"\n'
-        f'merge_method = "{profile.merge_method}"\n'
-        f"merge_current_branch = {'true' if profile.merge_current_branch else 'false'}\n"
-    ).encode()
+def _context_path_value(path: Path) -> str:
+    return "." if path == Path(".") else path.as_posix()
 
 
-def _table(data: dict[str, object], name: str) -> dict[str, object]:
-    value = data.get(name)
-    if not isinstance(value, dict):
-        raise LibraryError(f"172x.toml must contain a [{name}] table")
-    return value
+def _toml_string(value: str) -> str:
+    """Encode one TOML basic string with the compatible stdlib JSON encoder."""
+    return json.dumps(value, ensure_ascii=False)
 
 
-def _string(table: dict[str, object], key: str, table_name: str) -> str:
-    value = table.get(key)
-    if not isinstance(value, str) or not value:
-        raise LibraryError(f"172x.toml [{table_name}].{key} must be a non-empty string")
-    return value
+def contexts_toml(contexts: tuple[ActivationContext, ...]) -> bytes:
+    """Render local-only activation data in a deliberately small stable TOML format."""
+    if not contexts:
+        raise LibraryError("at least one local activation context is required")
+    lines = [
+        "# Local 172X activation state. This file is intentionally ignored by Git.\n",
+        "version = 1\n",
+    ]
+    for context in contexts:
+        validate_profile(context.profile)
+        if context.path.is_absolute() or ".." in context.path.parts:
+            raise LibraryError(
+                "activation paths must be repository-relative and must not contain '..'"
+            )
+        tools = ", ".join(_toml_string(tool) for tool in context.profile.gate_tools)
+        lines.extend(
+            (
+                "\n[[contexts]]\n",
+                f"path = {_toml_string(_context_path_value(context.path))}\n",
+                f"language = {_toml_string(context.profile.language)}\n",
+                f"gates = [{tools}]\n",
+            )
+        )
+    return "".join(lines).encode()
 
 
-def load_profile(target: Path) -> ProjectProfile:
-    """Load and validate the committed project profile without accepting extra policy."""
-    project = target.expanduser().resolve()
-    path = project / CONFIG_PATH
+def _parse_contexts(path: Path) -> tuple[ActivationContext, ...]:
     if not path.is_file() or path.is_symlink():
-        raise LibraryError("172X project profile is missing; run: agents install codex python")
+        raise LibraryError(f"172X activation is missing: {path}")
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
-        raise LibraryError(f"invalid 172X project profile: {path}") from error
-    if set(data) != {"host", "language", "scm", "provider", "gate", "change_request"}:
-        raise LibraryError("172x.toml must contain only the documented 172X profile tables")
-    host = _table(data, "host")
-    language = _table(data, "language")
-    scm = _table(data, "scm")
-    provider = _table(data, "provider")
-    gate = _table(data, "gate")
-    change_request = _table(data, "change_request")
-    if (
-        set(host) != {"id"}
-        or set(language) != {"id"}
-        or set(scm) != {"id"}
-        or set(provider) != {"id"}
-    ):
-        raise LibraryError("host, language, scm, and provider tables must contain only id")
-    if set(gate) != {"tools"}:
-        raise LibraryError("gate table must contain only its documented fields")
-    if set(change_request) != {"kind", "base_branch", "merge_method", "merge_current_branch"}:
-        raise LibraryError("change_request table must contain only its documented fields")
-    tools = gate.get("tools")
-    if not isinstance(tools, list) or not all(isinstance(tool, str) for tool in tools):
-        raise LibraryError("172x.toml [gate].tools must be an array of tool IDs")
-    merge_current_branch = change_request.get("merge_current_branch")
-    if not isinstance(merge_current_branch, bool):
-        raise LibraryError("172x.toml [change_request].merge_current_branch must be true or false")
-    profile = ProjectProfile(
-        host=_string(host, "id", "host"),
-        language=_string(language, "id", "language"),
-        scm=_string(scm, "id", "scm"),
-        provider=_string(provider, "id", "provider"),
-        gate_tools=tuple(tools),
-        change_request_kind=_string(change_request, "kind", "change_request"),
-        base_branch=_string(change_request, "base_branch", "change_request"),
-        merge_method=_string(change_request, "merge_method", "change_request"),
-        merge_current_branch=merge_current_branch,
+        raise LibraryError(f"invalid 172X activation: {path}") from error
+    if set(data) != {"version", "contexts"} or data.get("version") != 1:
+        raise LibraryError(
+            ".172x/contexts.toml must contain only version = 1 and [[contexts]] entries"
+        )
+    entries = data.get("contexts")
+    if not isinstance(entries, list) or not entries:
+        raise LibraryError(".172x/contexts.toml must contain at least one [[contexts]] entry")
+    contexts: list[ActivationContext] = []
+    seen: set[Path] = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"path", "language", "gates"}:
+            raise LibraryError("each 172X context must contain only path, language, and gates")
+        raw_path = entry.get("path")
+        language = entry.get("language")
+        gates = entry.get("gates")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise LibraryError("172X context path must be a non-empty relative path")
+        relative = Path(raw_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise LibraryError(
+                "172X context path must be repository-relative and must not contain '..'"
+            )
+        relative = Path(".") if raw_path == "." else relative
+        if relative in seen:
+            raise LibraryError(f"duplicate 172X activation context path: {relative}")
+        if (
+            not isinstance(language, str)
+            or not isinstance(gates, list)
+            or not all(isinstance(gate, str) for gate in gates)
+        ):
+            raise LibraryError("172X context language and gates are invalid")
+        profile = default_profile(language=language, gate_tools=tuple(gates))
+        contexts.append(ActivationContext(path=relative, profile=profile))
+        seen.add(relative)
+    return tuple(contexts)
+
+
+def load_contexts(root: Path) -> tuple[ActivationContext, ...]:
+    """Load local activation contexts from one selected repository root."""
+    return _parse_contexts(root.expanduser().resolve() / CONTEXT_PATH)
+
+
+def _activation_root_and_relative(target: Path) -> tuple[Path, Path]:
+    project = target.expanduser().resolve()
+    if not project.is_dir():
+        raise LibraryError(f"target project is not a directory: {target}")
+    for root in (project, *project.parents):
+        activation = root / CONTEXT_PATH
+        if activation.exists():
+            return root, project.relative_to(root)
+    raise LibraryError("172X activation is missing; run: agents activate python")
+
+
+def load_profile(target: Path) -> ProjectProfile:
+    """Load the activation context that exactly matches a selected project directory."""
+    root, relative = _activation_root_and_relative(target)
+    for context in load_contexts(root):
+        if context.path == relative:
+            return context.profile
+    raise LibraryError(
+        f"no 172X activation context matches {relative.as_posix() or '.'}; run: agents activate python"
     )
+
+
+def write_activation(
+    root: Path,
+    relative: Path,
+    profile: ProjectProfile,
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+) -> tuple[str, Path]:
+    """Create or replace one explicit local activation without touching dependency files."""
+    workspace = root.expanduser().resolve()
+    if not workspace.is_dir():
+        raise LibraryError(f"activation root is not a directory: {root}")
+    if relative.is_absolute() or ".." in relative.parts:
+        raise LibraryError("activation path must be repository-relative and must not contain '..'")
+    context_path = Path(".") if relative == Path(".") else relative
+    if not (workspace / context_path).is_dir():
+        raise LibraryError(f"activation target is not a directory: {context_path}")
     validate_profile(profile)
-    return profile
+    destination = workspace / CONTEXT_PATH
+    if destination.is_symlink() or (
+        destination.parent.exists() and destination.parent.is_symlink()
+    ):
+        raise LibraryError(f"172X activation path must not be a symlink: {destination}")
+    contexts = list(_parse_contexts(destination)) if destination.exists() else []
+    index = next(
+        (item for item, context in enumerate(contexts) if context.path == context_path), None
+    )
+    replacement = ActivationContext(path=context_path, profile=profile)
+    if index is not None:
+        if contexts[index] == replacement:
+            return "UNCHANGED", CONTEXT_PATH
+        if not force:
+            raise LibraryError(
+                f"172X activation already exists for {context_path}; rerun with --force to replace it"
+            )
+        contexts[index] = replacement
+        action = "REPLACE"
+    else:
+        contexts.append(replacement)
+        action = "CREATE"
+    contents = contexts_toml(tuple(contexts))
+    if dry_run:
+        return action, CONTEXT_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(contents)
+    return action, CONTEXT_PATH
+
+
+def ensure_activation_is_locally_ignored(
+    root: Path, *, dry_run: bool = False
+) -> tuple[str, Path] | None:
+    """Add only `.172x/` to this repository's local Git exclude file when available."""
+    workspace = root.expanduser().resolve()
+    if shutil.which("git") is None:
+        return None
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--git-path", "info/exclude"],
+            cwd=workspace,
+            shell=False,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    raw_path = completed.stdout.strip()
+    if not raw_path:
+        return None
+    exclude = Path(raw_path)
+    if not exclude.is_absolute():
+        exclude = workspace / exclude
+    exclude = exclude.resolve()
+    existing = exclude.read_text(encoding="utf-8") if exclude.is_file() else ""
+    if ".172x/" in {line.strip() for line in existing.splitlines()}:
+        return "UNCHANGED", exclude
+    if dry_run:
+        return "CREATE" if not exclude.exists() else "UPDATE", exclude
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    suffix = "" if not existing or existing.endswith("\n") else "\n"
+    exclude.write_text(f"{existing}{suffix}.172x/\n", encoding="utf-8")
+    return "CREATE" if not existing else "UPDATE", exclude
 
 
 def detected_platform() -> str:
@@ -408,20 +376,24 @@ def detected_platform() -> str:
     return "macos" if platform.system() == "Darwin" else platform.system().lower() or "unknown"
 
 
-def _command_output(target: Path, arguments: list[str]) -> tuple[bool, str]:
-    completed = subprocess.run(
-        arguments,
-        cwd=target,
-        shell=False,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return completed.returncode == 0, completed.stdout
+def _command_output(target: Path, arguments: tuple[str, ...]) -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            list(arguments),
+            cwd=target,
+            shell=False,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False, ""
+    return completed.returncode == 0, completed.stdout or completed.stderr
 
 
 def prerequisite_rows(target: Path, profile: ProjectProfile) -> tuple[tuple[str, bool, str], ...]:
-    """Inspect the real local prerequisites without changing project state."""
+    """Inspect configured gates and dev-loop prerequisites without changing local state."""
     project = target.expanduser().resolve()
     if not project.is_dir():
         return (("Target", False, f"not a directory: {target}"),)
@@ -435,55 +407,31 @@ def prerequisite_rows(target: Path, profile: ProjectProfile) -> tuple[tuple[str,
         )
     )
     rows.append(("Host executable", shutil.which(profile.host) is not None, profile.host))
+    for tool, command in zip(
+        profile.gate_tools, gate_probe_commands(project, profile), strict=True
+    ):
+        ok, _ = _command_output(project, command)
+        rows.append((f"Gate tool: {tool}", ok, " ".join(command)))
     git_available = shutil.which("git") is not None
     rows.append(("Git executable", git_available, "git"))
     git_repository = (
-        git_available and _command_output(project, ["git", "rev-parse", "--is-inside-work-tree"])[0]
+        git_available and _command_output(project, ("git", "rev-parse", "--is-inside-work-tree"))[0]
     )
-    rows.append(("Git repository", git_repository, "working tree required"))
-    remote_ok = (
-        git_repository and _command_output(project, ["git", "remote", "get-url", "origin"])[0]
-    )
-    rows.append(("Git remote", remote_ok, "origin required"))
+    rows.append(("Git repository", git_repository, "working tree required for dev-loop"))
     gh_available = shutil.which("gh") is not None
-    rows.append(("GitHub CLI", gh_available, "gh"))
-    github_auth = gh_available and _command_output(project, ["gh", "auth", "status"])[0]
-    rows.append(("GitHub authentication", github_auth, "authenticated gh account required"))
-    permission_ok = False
-    if github_auth:
-        permission_ok, permission_output = _command_output(
-            project, ["gh", "repo", "view", "--json", "viewerPermission"]
-        )
-        if permission_ok:
-            try:
-                permission = json.loads(permission_output).get("viewerPermission")
-            except json.JSONDecodeError:
-                permission = None
-            permission_ok = permission in {"ADMIN", "MAINTAIN", "WRITE"}
-    rows.append(
-        (
-            "GitHub repository permission",
-            permission_ok,
-            "write, maintain, or admin access required for branch and change-request actions",
-        )
-    )
-    for tool, command in zip(
-        profile.gate_tools, active_gate_commands(project, profile), strict=True
-    ):
-        executable = command[0]
-        rows.append((f"Gate tool: {tool}", shutil.which(executable) is not None, " ".join(command)))
+    rows.append(("GitHub CLI", gh_available, "gh (needed only for dev-loop GitHub actions)"))
     rows.append(
         (
             "GitHub reviewer identity",
             False,
-            "configure an eligible independent reviewer bot or credential when branch rules require it",
+            "configure an eligible independent reviewer when branch rules require it",
         )
     )
     return tuple(rows)
 
 
 def prerequisites_ok(rows: tuple[tuple[str, bool, str], ...]) -> bool:
-    """Allow the manual reviewer-identity diagnostic without masking other setup failures."""
+    """Keep advisory doctor rows separate from an explicit dev-loop decision."""
     return all(ok for label, ok, _ in rows if label != "GitHub reviewer identity")
 
 

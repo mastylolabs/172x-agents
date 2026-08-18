@@ -7,16 +7,23 @@ Markdown-first, composable AI-agent workflows for Codex.
 ## Start small
 
 ```bash
-pipx install "git+https://github.com/mastylolabs/172x-agents.git"
-agents install codex python
+curl -fsSL https://forge.172x.ai/install.sh | sh
+agents install codex
+agents activate python
 agents --workflow dev
+```
+
+Windows users can use the pinned PowerShell installer:
+
+```powershell
+irm https://forge.172x.ai/install.ps1 | iex
 ```
 
 The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles,
 then stops for a human merge decision.
 
-The only supported profile today is Codex + Python + Git + GitHub on macOS. The canonical library is
-host-neutral, but Claude, Gemini, Rust, other languages, Linux, and Windows are planned—not
+Forge installation is global and language-neutral. Python is the only supported local activation
+profile today; Claude, Gemini, Rust, other languages, Linux, and Windows are planned—not
 selectable.
 
 For a repository that deliberately opts in, `dev-loop` takes a task through branch creation,
@@ -36,9 +43,9 @@ Use the complete workflow or create a smaller Markdown workflow containing only 
 ## Lightweight architecture
 
 - Markdown agents and workflows
-- Native Codex custom agents and skills
-- Committed Codex/Python/Git/GitHub project profile
-- Repository-scoped workflow skill
+- Global namespaced Codex skills
+- Ignored local language and gate activation state
+- Advisory `doctor` checks that never install external tools
 - Independent `agents` and `172x-agents` commands
 - Optional `172x agents` ecosystem integration
 - No workflow server, database, or bundled MCP service

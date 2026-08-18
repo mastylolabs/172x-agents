@@ -10,18 +10,20 @@ from typing import Annotated
 import typer
 
 from .codex import (
-    Action,
     active_workflow,
-    codex_toml,
-    install_configured_codex,
-    integration_current,
+    default_codex_home,
+    install_codex,
+    installed_capability_ids,
     launch_codex,
+    managed_files,
     select_workflow,
+    uninstall_codex,
 )
 from .github import merge_gate, merge_pull_request, resolve_review_thread, review_threads
 from .library import (
     LibraryError,
     domains,
+    find_item,
     find_workflow,
     load_library,
     load_workflows,
@@ -31,13 +33,12 @@ from .profiles import (
     ProjectProfile,
     capability_rows,
     default_profile,
-    gate_install_command,
-    gate_tools_declared,
-    install_gate_tools,
+    ensure_activation_is_locally_ignored,
     language_tools,
     load_profile,
     prerequisite_rows,
     prerequisites_ok,
+    write_activation,
 )
 
 
@@ -80,13 +81,13 @@ app = typer.Typer(
     invoke_without_command=True,
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
 )
-install_app = typer.Typer(
-    help="Create a reviewed 172X project profile and install a host integration."
-)
+install_app = typer.Typer(help="Install global 172X Forge capabilities for a supported host.")
+uninstall_app = typer.Typer(help="Remove global 172X Forge capabilities from a supported host.")
 github_app = typer.Typer(
     help="Inspect guarded dev-loop pull-request gates and perform guarded merges."
 )
 app.add_typer(install_app, name="install")
+app.add_typer(uninstall_app, name="uninstall")
 app.add_typer(github_app, name="github")
 
 
@@ -97,48 +98,6 @@ def _target(target: Path | None) -> Path:
 def _operational_error(message: str) -> None:
     typer.echo(f"Error: {message}", err=True)
     raise typer.Exit(1)
-
-
-def _profile(host: str, language: str, gate: tuple[str, ...]) -> ProjectProfile:
-    tools = gate if gate else None
-    return default_profile(host=host, language=language, gate_tools=tools)
-
-
-def _check_profile_prerequisites(project: Path, profile: ProjectProfile) -> None:
-    rows = prerequisite_rows(project, profile)
-    if prerequisites_ok(rows):
-        return
-    failed = "; ".join(
-        f"{label}: {detail}"
-        for label, ok, detail in rows
-        if not ok and label != "GitHub reviewer identity"
-    )
-    raise LibraryError(f"profile prerequisites are not ready: {failed}")
-
-
-def _install_profiled_codex(
-    target: Path,
-    language: str,
-    gate: tuple[str, ...],
-    dry_run: bool,
-    force: bool,
-    only: tuple[str, ...] = (),
-) -> tuple[list[tuple[Action, Path, bytes]], tuple[str, ...]]:
-    profile = _profile("codex", language, gate)
-    plan = install_configured_codex(target, profile, dry_run=True, force=force, only=only)
-    tool_command = (
-        () if gate_tools_declared(target, profile) else gate_install_command(target, profile)
-    )
-    if dry_run:
-        return plan, tool_command
-    if tool_command:
-        typer.echo(f"Installing selected gate tools: {' '.join(tool_command)}")
-        install_gate_tools(target, profile)
-    _check_profile_prerequisites(target, profile)
-    return (
-        install_configured_codex(target, profile, dry_run=False, force=force, only=only),
-        tool_command,
-    )
 
 
 def workflow_id_completions(incomplete: str) -> list[tuple[str, str]]:
@@ -154,45 +113,11 @@ def workflow_id_completions(incomplete: str) -> list[tuple[str, str]]:
 @install_app.callback(invoke_without_command=True)
 def install(
     ctx: typer.Context,
-    target: Annotated[
-        Path | None,
-        typer.Option("--target", help="Target project directory.", file_okay=False, dir_okay=True),
-    ] = None,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Validate and print the plan without writing files.")
-    ] = False,
-    force: Annotated[
-        bool, typer.Option("--force", help="Replace a conflicting 172x.toml or managed file.")
-    ] = False,
 ) -> None:
-    """Guide creation of the only currently supported project profile when called bare."""
+    """Install Forge globally once, then activate language contexts per project."""
     if ctx.invoked_subcommand is not None:
         return
-    host = typer.prompt("Coding host", default="codex").strip().casefold()
-    language = typer.prompt("Programming language", default="python").strip().casefold()
-    try:
-        available_tools = language_tools(language)
-    except LibraryError as error:
-        _operational_error(str(error))
-    tools_text = typer.prompt("Gate tools (comma-separated)", default=", ".join(available_tools))
-    gate = tuple(tool.strip().casefold() for tool in tools_text.split(",") if tool.strip())
-    if host != "codex":
-        try:
-            _profile(host, language, gate)
-        except LibraryError as error:
-            _operational_error(str(error))
-    try:
-        plan, tool_command = _install_profiled_codex(
-            _target(target), language, gate, dry_run, force
-        )
-    except LibraryError as error:
-        _operational_error(str(error))
-    if dry_run and tool_command:
-        typer.echo(f"Would install selected gate tools: {' '.join(tool_command)}")
-    for action, path, _ in plan:
-        typer.echo(f"{action} {path.as_posix()}")
-    if dry_run:
-        typer.echo("No files written.")
+    typer.echo("Run: agents install codex")
 
 
 @app.callback(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -202,7 +127,7 @@ def agents(
         str | None,
         typer.Option(
             "--workflow",
-            help="Select a bundled or project-owned workflow.",
+            help="Select a bundled workflow.",
             autocompletion=workflow_id_completions,
         ),
     ] = None,
@@ -230,7 +155,7 @@ def agents(
     if ctx.invoked_subcommand is not None:
         raise typer.BadParameter("--workflow cannot be combined with an agents subcommand")
     try:
-        selected = find_workflow(_target(target), workflow)
+        selected = find_item("workflows", workflow)
         select_workflow(_target(target), workflow)
     except LibraryError as error:
         if "unknown workflow ID" in str(error):
@@ -257,32 +182,14 @@ def agents(
 
 @install_app.command("codex")
 def install_codex_command(
-    language: Annotated[
-        str, typer.Argument(help="Programming language profile; Python is supported.")
-    ] = "python",
-    target: Annotated[
-        Path | None,
-        typer.Option(
-            "--target",
-            help="Target project directory.",
-            file_okay=False,
-            dir_okay=True,
-        ),
-    ] = None,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", help="Print the plan without writing files."),
+        typer.Option("--dry-run", help="Print the global installation plan without writing files."),
     ] = False,
     force: Annotated[
         bool,
-        typer.Option("--force", help="Replace conflicting managed files."),
+        typer.Option("--force", help="Replace conflicting 172X-managed global skill files."),
     ] = False,
-    gate: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--gate", help="Repeat a supported gate tool ID; defaults to the Python profile."
-        ),
-    ] = None,
     only: Annotated[
         list[str] | None,
         typer.Option(
@@ -291,28 +198,97 @@ def install_codex_command(
         ),
     ] = None,
 ) -> None:
-    """Install all, or selected, Codex capabilities with a committed project profile."""
+    """Install all, or selected, Forge capabilities into the current user's Codex skills."""
     try:
-        selected_gate = tuple(gate or ())
-        if not selected_gate:
-            available_tools = language_tools(language.casefold())
-            tools_text = typer.prompt(
-                "Gate tools to install (comma-separated)", default=", ".join(available_tools)
-            )
-            selected_gate = tuple(
-                tool.strip().casefold() for tool in tools_text.split(",") if tool.strip()
-            )
-        plan, tool_command = _install_profiled_codex(
-            _target(target), language.casefold(), selected_gate, dry_run, force, tuple(only or ())
-        )
+        home = default_codex_home()
+        plan = install_codex(home, dry_run=dry_run, force=force, only=tuple(only or ()))
     except LibraryError as error:
         _operational_error(str(error))
-    if dry_run and tool_command:
-        typer.echo(f"Would install selected gate tools: {' '.join(tool_command)}")
+    typer.echo(f"Codex home: {home}")
     for action, path, _ in plan:
         typer.echo(f"{action} {path.as_posix()}")
     if dry_run:
         typer.echo("No files written.")
+
+
+@uninstall_app.command("codex")
+def uninstall_codex_command(
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print the global removal plan without deleting files."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Remove modified 172X-managed global skill directories."),
+    ] = False,
+    only: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--only",
+            help="Repeat a direct bundled capability ID to remove only that global skill.",
+        ),
+    ] = None,
+) -> None:
+    """Remove all, or selected, Forge capabilities from the current user's Codex skills."""
+    try:
+        home = default_codex_home()
+        plan = uninstall_codex(home, dry_run=dry_run, force=force, only=tuple(only or ()))
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(f"Codex home: {home}")
+    for action, path, _ in plan:
+        typer.echo(f"{action} {path.as_posix()}")
+    if dry_run:
+        typer.echo("No files deleted.")
+
+
+@app.command("activate")
+def activate(
+    language: Annotated[
+        str, typer.Argument(help="Language profile for this project path; Python is supported.")
+    ] = "python",
+    path: Annotated[
+        Path,
+        typer.Option(
+            "--path", help="Repository-relative project path to activate.", file_okay=False
+        ),
+    ] = Path("."),
+    gate: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--gate", help="Repeat an expected gate tool ID; defaults to the language profile."
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print the local activation change without writing it."),
+    ] = False,
+    force: Annotated[
+        bool, typer.Option("--force", help="Replace an existing activation at this project path.")
+    ] = False,
+) -> None:
+    """Record a local quality contract without installing or changing external developer tools."""
+    try:
+        normalized_language = language.casefold()
+        selected_gates = tuple(gate or ())
+        if not selected_gates:
+            available_tools = language_tools(normalized_language)
+            prompt = typer.prompt(
+                "Expected gate tools (comma-separated)", default=", ".join(available_tools)
+            )
+            selected_gates = tuple(
+                item.strip().casefold() for item in prompt.split(",") if item.strip()
+            )
+        profile = default_profile(language=normalized_language, gate_tools=selected_gates)
+        action, relative = write_activation(Path.cwd(), path, profile, dry_run=dry_run, force=force)
+        exclude = ensure_activation_is_locally_ignored(Path.cwd(), dry_run=dry_run)
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(f"{action} {relative.as_posix()}")
+    if exclude is not None:
+        exclude_action, exclude_path = exclude
+        typer.echo(f"{exclude_action} local Git exclude: {exclude_path}")
+    typer.echo("No external tools, dependencies, or package-manager files were changed.")
 
 
 @github_app.command("review-threads")
@@ -400,23 +376,13 @@ def github_merge(
 
 
 @app.command("list")
-def list_agents(
-    target: Annotated[
-        Path | None,
-        typer.Option(
-            "--target",
-            help="Project to inspect.",
-            file_okay=False,
-            dir_okay=True,
-        ),
-    ] = None,
-) -> None:
-    """List bundled agents and whether their generated Codex custom agent is current."""
-    project = _target(target)
+def list_agents() -> None:
+    """List bundled agents and whether their global Codex skill is current."""
+    home = default_codex_home()
     typer.echo(f"{'ID':<25} {'NAME':<34} INSTALLED")
     for agent in load_library("agents"):
-        expected = codex_toml(agent)
-        installed = project / ".codex/agents" / f"172x-{agent.id}.toml"
+        expected = managed_files(only=(agent.id,))[Path("skills") / f"172x-{agent.id}" / "SKILL.md"]
+        installed = home / "skills" / f"172x-{agent.id}" / "SKILL.md"
         current = (
             installed.is_file()
             and not installed.is_symlink()
@@ -499,10 +465,10 @@ def doctor(
         ),
     ] = None,
 ) -> None:
-    """Perform read-only library, installation, selection, and executable checks."""
+    """Perform read-only global-installation, activation, and executable checks."""
     project = _target(target)
     try:
-        agents, _ = validate_library()
+        validate_library()
         project_ok = project.expanduser().resolve().is_dir()
     except LibraryError as error:
         _operational_error(str(error))
@@ -513,30 +479,27 @@ def doctor(
             profile = load_profile(project)
         except LibraryError as error:
             profile_error = str(error)
-    skill_ok = integration_current(project) if project_ok else False
+    home = default_codex_home()
+    installed_capabilities = installed_capability_ids(home) if home.is_dir() else ()
+    skill_ok = bool(installed_capabilities)
     active = active_workflow(project) if project_ok else None
     active_path = project.expanduser().resolve() / ".172x/active-workflow" if project_ok else None
     active_ok = active is not None or active_path is None or not active_path.exists()
-    custom_current = 0
-    if project_ok:
-        for agent in agents:
-            expected = codex_toml(agent)
-            path = project.expanduser().resolve() / ".codex/agents" / f"172x-{agent.id}.toml"
-            if path.is_file() and not path.is_symlink() and path.read_bytes() == expected:
-                custom_current += 1
     typer.echo("Library:          OK")
     typer.echo(f"Target:           {'OK' if project_ok else 'FAIL'}")
-    typer.echo(f"Codex skill: {'OK' if skill_ok else 'MISSING OR OUTDATED'}")
-    typer.echo(
-        f"Custom agents:    {'OK' if custom_current == len(agents) else 'MISSING OR OUTDATED'} ({custom_current}/{len(agents)})"
-    )
+    if skill_ok:
+        total = len(load_library("agents")) + len(load_library("workflows"))
+        scope = "complete" if len(installed_capabilities) == total else "focused"
+        typer.echo(f"Global Forge:     OK ({scope} {len(installed_capabilities)}/{total}; {home})")
+    else:
+        typer.echo(f"Global Forge:     MISSING OR OUTDATED ({home})")
     typer.echo(f"Active workflow:  {active if active is not None else 'NONE OR INVALID'}")
     executable_ok = shutil.which("codex") is not None
     typer.echo(f"Codex executable: {'OK' if executable_ok else 'NOT FOUND'}")
     prerequisite_ok = True
     if profile is not None:
         typer.echo(
-            f"Project profile:  OK ({profile.host}/{profile.language}/{profile.scm}/{profile.provider})"
+            f"Activation:       OK ({profile.language}; gates: {', '.join(profile.gate_tools)})"
         )
         rows = prerequisite_rows(project, profile)
         for label, ok, detail in rows:
@@ -544,11 +507,10 @@ def doctor(
             typer.echo(f"{label}: {state} ({detail})")
         prerequisite_ok = prerequisites_ok(rows)
     elif profile_error is not None:
-        typer.echo(f"Project profile:  MISSING OR INVALID ({profile_error})")
+        typer.echo(f"Activation:       NONE OR INVALID ({profile_error})")
     if (
         not project_ok
         or not skill_ok
-        or custom_current != len(agents)
         or not active_ok
         or not executable_ok
         or not prerequisite_ok

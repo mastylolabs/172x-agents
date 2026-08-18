@@ -33,6 +33,12 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         <p className="mt-0.5 text-[13px] leading-snug text-foreground/85">
           {agent.useWhen}
         </p>
+        <div className="mt-2 border-t border-border pt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Choose another role when
+        </div>
+        <p className="mt-0.5 text-[13px] leading-snug text-foreground/75">
+          {agent.doNotUseWhen}
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5">

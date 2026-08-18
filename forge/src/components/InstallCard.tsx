@@ -1,11 +1,10 @@
 import type { Agent } from '../data/types'
 import { catalogRevision } from '../data/catalog'
-import { projectProfile } from '../data/compatibility'
 import CommandBlock from './CommandBlock'
 import { CheckIcon } from './Icons'
 
 export default function InstallCard({ agent }: { agent: Agent }) {
-  const command = `agents install codex python --only ${agent.slug}`
+  const command = `agents install codex --only ${agent.slug}`
 
   return (
     <div className="rounded-[16px] border border-border bg-card p-5 shadow-[0_4px_20px_rgba(27,35,32,0.05)]">
@@ -13,7 +12,7 @@ export default function InstallCard({ agent }: { agent: Agent }) {
         Install {agent.name}
       </h3>
       <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-        Adds this specialist to your current project profile.
+        Adds this specialist to your global Codex Forge catalog.
       </p>
 
       <div className="mt-4">
@@ -32,17 +31,12 @@ export default function InstallCard({ agent }: { agent: Agent }) {
 
       <div className="mt-5 border-t border-border pt-4">
         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Project profile
+          Project activation
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {projectProfile.map((p) => (
-            <span
-              key={p}
-              className="rounded-md border border-border bg-muted/70 px-2 py-1 font-mono text-[12px] text-foreground/80"
-            >
-              {p}
-            </span>
-          ))}
+          <span className="rounded-md border border-border bg-muted/70 px-2 py-1 font-mono text-[12px] text-foreground/80">
+            Optional · local · no tool installation
+          </span>
         </div>
       </div>
 

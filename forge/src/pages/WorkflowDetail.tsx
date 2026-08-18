@@ -13,7 +13,7 @@ export default function WorkflowDetail() {
   const workflow = workflowBySlug[slug]
   if (!workflow) return <NotFound />
 
-  const command = `agents install codex python --only ${workflow.slug}`
+  const command = `agents install codex --only ${workflow.slug}`
   const participants = workflow.agents
     .map((s) => agentBySlug[s])
     .filter(Boolean)

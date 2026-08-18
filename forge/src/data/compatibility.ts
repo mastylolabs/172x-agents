@@ -46,6 +46,3 @@ export const compatibility: SupportGroup[] = [
     ],
   },
 ]
-
-// The current, real project profile that install commands assume.
-export const projectProfile = ['Python', 'Git', 'GitHub', 'macOS']

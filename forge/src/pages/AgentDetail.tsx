@@ -68,6 +68,12 @@ export default function AgentDetail({ agent }: { agent: Agent }) {
               </p>
             </Section>
 
+            <Section title="Do not use when">
+              <p className="text-[15px] leading-relaxed text-foreground/90">
+                {agent.doNotUseWhen}
+              </p>
+            </Section>
+
             <Section title="What you receive">
               <BulletList items={agent.receive} check />
             </Section>

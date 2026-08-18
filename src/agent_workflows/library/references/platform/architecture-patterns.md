@@ -2,6 +2,14 @@
 
 Use this reference when a backend or cross-discipline design requires a consequential architecture choice. Start from the smallest pattern that satisfies the confirmed constraints; a pattern is not a goal in itself.
 
+## Decision readiness
+
+Require approved user journeys, existing system and ownership evidence, material non-functional
+constraints, delivery and operating capability, stable consumers, and known migration or recovery
+limits. If ownership, security policy, or a material product outcome conflicts, preserve the
+conflict and stop the affected pattern decision. Do not use scale, reliability, or team assumptions
+as facts without an identified source and measurement boundary.
+
 ## Selection order
 
 1. Confirm user journeys, data sensitivity, expected load, reliability needs, team ownership, delivery window, and existing conventions.
@@ -104,6 +112,17 @@ Use this reference when a backend or cross-discipline design requires a conseque
 
 Every pattern needs explicit ownership for schemas, API contracts, and personal data. Prefer backward-compatible changes, staged migrations, safe defaults, observable backfills, and rollback or forward-repair plans. A service boundary without data ownership is not a boundary.
 
+## Pattern decision completeness
+
+For a selected pattern, record the activated constraint, current evidence, rejected simpler option,
+ownership, interfaces, data and consistency, authorization, critical failure path, operability,
+migration and recovery, residual risks, and a measurable evidence-based revisit trigger. A pattern
+name or diagram without these decisions is not an architecture.
+
+Stress each critical path with: initiating actor; owned data; dependencies; timeout and partial
+failure; retry or idempotency; detection; user-visible state; recovery owner; and evidence or
+unknown. Use `references/platform/system-design-workflow.md` for the full method.
+
 ## Practical anti-patterns
 
 - Microservices without independent ownership and operational maturity.
@@ -113,3 +132,33 @@ Every pattern needs explicit ownership for schemas, API contracts, and personal 
 - Event sourcing adopted solely to appear sophisticated.
 - A distributed transaction disguised as a sequence of synchronous calls.
 - A clean diagram with no ownership, failure, migration, or authorization story.
+
+## Failure and escalation
+
+If the selected pattern cannot describe safe failure, recovery, migration, ownership, and
+authorization within confirmed constraints, return to the smallest viable option or mark the
+decision unresolved. Escalate when product behavior, data ownership, risk tolerance, cost,
+operating capacity, or an irreversible migration needs human or contract-owner authority.
+
+## Calibration
+
+**Good:** “One team owns the evolving domain, current load fits the existing deployment, and no
+independent scaling or release need is evidenced. Keep explicit modules in the monolith; add a queue
+only for the approved long-running export, with idempotency, terminal failure, and progress state.”
+
+**Counterexample:** “Use microservices and event sourcing because future scale may be large.” The
+proposal has no durable ownership, workload, recovery, or operating evidence.
+
+## Evidence expectations
+
+Tie the pattern and each exception to current repository, contract, operational, or approved
+constraint evidence. Label proposed choices, assumptions, and unknowns with
+`references/common/evidence-and-uncertainty.md`. Do not claim production properties from a diagram
+or an unrun experiment.
+
+## Related assets
+
+- `assets/platform/architecture-template.md` for the complete architecture.
+- `assets/platform/architecture-decision-record-template.md` for consequential pattern choice.
+- `assets/platform/system-context-template.mmd` and `assets/platform/event-flow-template.mmd` when a
+  diagram materially clarifies boundaries or asynchronous failure.

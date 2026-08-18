@@ -23,6 +23,7 @@ export default function AgentsIndex() {
         a.name.toLowerCase().includes(q) ||
         a.summary.toLowerCase().includes(q) ||
         a.useWhen.toLowerCase().includes(q) ||
+        a.doNotUseWhen.toLowerCase().includes(q) ||
         a.domain.includes(q),
     )
   }, [query])

@@ -11,9 +11,10 @@ steps:
 - implemented and committed the greeting task;
 - pushed the branch and opened a GitHub pull request.
 
-The host then dispatched `brief` twice and later dispatched `qa` twice, followed by repeated waits
-without a completed handoff. This is direct evidence that the current prompt-only coordinator does
-not yet guarantee exactly-once delegation or reliable bounded completion.
+The host then dispatched the then-current `brief` role twice and later the then-current `qa` role
+twice, followed by repeated waits without a completed handoff. Those historical identifiers are
+now `brief-author` and `qa-engineer`. This is direct evidence that the current prompt-only
+coordinator does not yet guarantee exactly-once delegation or reliable bounded completion.
 
 The run was stopped before treating QA or review evidence as trustworthy. No merge occurred. The
 visible recovery artifacts—the branch, commit, and pull request—remained available for inspection.
