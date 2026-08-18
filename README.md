@@ -12,15 +12,13 @@ Install the standalone CLI from a pinned GitHub Release. The end-user
 install does not require Python, `pip`, or `pipx`:
 
 ```bash
-curl --fail --location --remote-name https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.sh
-sh install.sh --version v0.1.0
+curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
 ```
 
 On Windows, save and inspect the PowerShell installer before running it:
 
 ```powershell
-irm https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0
+& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0
 ```
 
 See the [distribution contract](docs/DISTRIBUTION.md) for checksum verification and release

@@ -159,12 +159,12 @@ export default function Install() {
             </h3>
             <CommandBlock
               label="1 · Install the CLI (macOS/Linux)"
-              command={'curl --fail --location --remote-name https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.sh\nsh install.sh --version v0.1.0'}
+              command="curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0"
               compact
             />
             <CommandBlock
               label="1 · Install the CLI (Windows)"
-              command={'irm https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.ps1 -OutFile install.ps1\n.\\install.ps1 -Version v0.1.0'}
+              command="& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0"
               compact
             />
             <CommandBlock label="2 · Add capabilities" command={installCommand} compact />

@@ -24,8 +24,14 @@ executable contains the CLI and canonical library; PyInstaller is not an end-use
 
 ## Pinned installation
 
-The recommended path downloads the installer from the same pinned GitHub Release that contains
-the executable assets. Inspect the script before running it:
+The short Forge command streams the installer while keeping the binary release explicit:
+
+```bash
+curl -fsSL https://forge.172x.ai/install.sh | sh -s -- --version v0.1.0
+```
+
+For an inspection-first install, download the installer from the same pinned GitHub Release that
+contains the executable assets:
 
 ```bash
 curl --fail --location --remote-name \
@@ -33,19 +39,17 @@ curl --fail --location --remote-name \
 sh install.sh --version v0.1.0
 ```
 
-Windows:
+Windows convenience form:
+
+```powershell
+& ([scriptblock]::Create((irm https://forge.172x.ai/install.ps1))) -Version v0.1.0
+```
+
+Windows inspection-first form:
 
 ```powershell
 irm https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.ps1 -OutFile install.ps1
 .\install.ps1 -Version v0.1.0
-```
-
-Convenience pipeline forms are available when the pinned URL is trusted:
-
-```bash
-curl --fail --location \
-  https://github.com/mastylolabs/172x-agents/releases/download/v0.1.0/install.sh \
-  | sh -s -- --version v0.1.0
 ```
 
 Every installer requires a pinned version, downloads the archive and its checksum from the
@@ -64,8 +68,9 @@ Pushing a `vMAJOR.MINOR.PATCH` tag starts `.github/workflows/release.yml`. The w
 all target executables, creates deterministic archives and checksums, generates and verifies the
 manifest, and publishes the GitHub Release with the installer scripts attached.
 
-No Cloudflare artifact bucket or deployment credential is required. Forge remains a separate
-Cloudflare Pages catalog at `forge.172x.ai`; it links to the pinned GitHub Release installer.
+No Cloudflare artifact bucket or deployment credential is required. The existing Forge Pages build
+publishes the canonical installer scripts at `forge.172x.ai`; those scripts download the pinned
+binary and checksum directly from GitHub Releases.
 
 ## Optional PyPI compatibility
 
