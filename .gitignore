@@ -1,8 +1,4 @@
-# Python environments and caches
-.venv/
-venv/
-env/
-ENV/
+# Python caches and tooling output
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,27 +9,38 @@ __pycache__/
 .coverage.*
 coverage.xml
 htmlcov/
+.tox/
+.nox/
 
-# Build, packaging, and documentation output
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build and distribution artifacts
 build/
 dist/
-site/
-node_modules/
-forge/src/data/catalog.generated.json
 *.egg-info/
 *.egg
 *.whl
+*.tar.gz
+node_modules/
+
+# Documentation output
+site/
+mkdocs_build/
 
 # Editor and operating-system files
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
 *.swp
 *.swo
 *~
-.idea/
-.vscode/
 
-# Environment files, credentials, and secrets
+# Environment files and local credentials
 .env
 .env.*
 !.env.example
@@ -43,19 +50,21 @@ Thumbs.db
 *.pfx
 *.crt
 *.cer
-credentials.json
-secrets.json
 *.token
 *.tokens
-.private/
+credentials.json
+secrets.json
 
-# Local 172X state
+# Local 172X activation and workflow state
 .172x/
+.private/
+forge/src/data/catalog.generated.json
 
-# Temporary files, logs, and generated scratch output
+# Temporary and generated files
 *.log
 *.tmp
 *.temp
 tmp/
+temp/
 .tmp/
 scratch/

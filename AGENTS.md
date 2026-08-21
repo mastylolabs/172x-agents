@@ -15,7 +15,8 @@ If documents disagree, use the narrowest v0.1 interpretation and report the conf
 
 ## Product definition
 
-172X Agents v0.1 is a Markdown-first library of composable agents and workflows with:
+172X Agents is a Markdown-first library of composable agents and workflows with a typed,
+capability-based provider integration layer. It has:
 
 - a small independently installable CLI whose implementation is Python source but whose end-user
   release is a standalone platform executable;
@@ -23,6 +24,7 @@ If documents disagree, use the narrowest v0.1 interpretation and report the conf
 - global Codex skill installation and optional ignored local activation contexts;
 - a repository-scoped Codex workflow skill;
 - native Codex skills for direct workflow and specialist selection;
+- a provider registry with source-control capability contracts and a guarded GitHub adapter;
 - four bundled workflows: `dev`, `dev-loop`, `idea-to-product`, and `idea-to-build`.
 
 The selected host is the runtime and coordinator. 172X Agents does not implement its own agent executor.
@@ -35,7 +37,6 @@ Do not add any of the following in v0.1:
 - SQLite or another database;
 - event or artifact store;
 - MCP server;
-- provider API client;
 - async scheduler, task queue, or event bus;
 - host abstraction hierarchy;
 - policy engine or expression language;
@@ -44,14 +45,16 @@ Do not add any of the following in v0.1:
 - plugin marketplace or package manager;
 - telemetry or analytics;
 - live GitHub mutation other than the narrowly scoped, explicitly opted-in branch/PR, review-thread, approval, and protected merge actions documented for `dev-loop`;
-- a generic host abstraction or adapter hierarchy;
+- an unrestricted provider runtime, background integration process, or empty provider adapter;
 - Pipeline migration;
 - unapproved package publishing or website deployment. The approved distribution boundary is
   manual PyPI compatibility publishing plus versioned GitHub Release standalone artifacts
   documented in `RELEASING.md`;
 - license selection without owner direction.
 
-Do not create placeholders, empty abstractions, feature flags, interfaces, database models, or configuration fields for those future ideas.
+Do not create empty provider adapters or speculative operations. Provider-neutral contracts are
+allowed only when they are exercised by an implemented adapter or required by the current registry
+and configuration behavior.
 
 ## First filesystem change
 
@@ -203,10 +206,13 @@ Allowed responsibilities:
 - load and validate the bundled flat frontmatter;
 - list and show agents and workflows;
 - install global Codex skills and references;
-- record one supported local activation context and diagnose its expected gates;
+- refresh the user-level editable 172X Agents CLI and global Codex skills from a validated local checkout;
+- record one supported local activation context, initialize local Git provider configuration, and diagnose its expected gates;
 - select an active workflow in `.172x/active-workflow`;
 - optionally launch the local `codex` executable with an initial skill prompt;
-- make the narrowly configured `dev-loop` branch/PR, review-thread, approval, and protected merge actions through the local `git` and `gh` executables;
+- resolve registered providers and their typed capabilities;
+- make narrowly configured source-control branch/change-request, review-thread, approval, and
+  protected merge actions through an implemented provider adapter;
 - diagnose whether installed managed files match bundled content;
 - create deterministic standalone release archives, manifests, and checksums without credentials
   or deployment side effects;
@@ -303,6 +309,8 @@ Test behavior at the smallest useful boundary:
   and the POSIX installer validates latest and pinned dry-run plus shell syntax behavior;
 - dev-loop GitHub gates reject missing opt-in, unresolved review threads, non-passing checks, non-approved reviews, and unsafe PR state;
 - dev-loop merge uses only the checked PR head and never uses an administrator or auto-merge flag;
+- provider registry resolution, capability discovery, and source-control adapter contract tests;
+- merge policy compatibility rejects a configured method that the live provider does not allow;
 - Forge catalog generation covers every canonical agent/workflow and derives positive and negative
   routing separately from the labeled `Use when` section;
 - `mkdocs build --strict` succeeds.
@@ -314,7 +322,8 @@ Do not create mock workflow hosts or simulated agent runtimes.
 - Describe only behavior implemented in the repository.
 - Do not represent `/workflow` as a native Codex command.
 - Use a native `172X · …` skill from `/skills` for direct workflow or specialist selection. The optional catalog skill accepts `$172x run <workflow>`.
-- Clearly separate local review recommendations, GitHub command acceptance, merge-queue state, and an actual confirmed merge.
+- Clearly separate local review recommendations, provider command acceptance, merge-queue state, and
+  an actual confirmed merge.
 - Keep install instructions short.
 - Document GitHub Releases as the source of record; installers default to the latest stable release,
   support an explicit pinned version, and verify checksums before writing.

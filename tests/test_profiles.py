@@ -101,9 +101,20 @@ def test_activation_adds_only_a_local_git_exclude_entry(monkeypatch, tmp_path: P
     assert exclude.read_text(encoding="utf-8") == ".172x/\n"
 
 
-def test_planned_language_is_not_activatable() -> None:
-    with pytest.raises(LibraryError, match="planned but not implemented"):
-        default_profile(language="rust")
+def test_rust_language_profile_is_activatable() -> None:
+    profile = default_profile(language="rust")
+
+    assert profile.gate_tools == ("fmt", "clippy", "test")
+    assert active_gate_commands(Path("."), profile) == (
+        ("cargo", "fmt", "--all", "--", "--check"),
+        ("cargo", "clippy", "--all-targets", "--all-features", "--", "-D", "warnings"),
+        ("cargo", "test", "--all-targets", "--all-features"),
+    )
+    assert gate_probe_commands(Path("."), profile) == (
+        ("cargo", "fmt", "--version"),
+        ("cargo", "clippy", "--version"),
+        ("cargo", "test", "--version"),
+    )
 
 
 def test_gate_commands_and_probes_use_existing_runner_without_installing(tmp_path: Path) -> None:
@@ -118,4 +129,4 @@ def test_gate_commands_and_probes_use_existing_runner_without_installing(tmp_pat
         ("uv", "run", "--no-sync", "ruff", "--version"),
         ("uv", "run", "--no-sync", "pytest", "--version"),
     )
-    assert ("language", "rust", "planned") in capability_rows()
+    assert ("language", "rust", "supported") in capability_rows()

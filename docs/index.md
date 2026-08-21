@@ -22,8 +22,8 @@ irm https://forge.172x.ai/install.ps1 | iex
 The `dev` workflow coordinates independent Principal Engineer, QA Engineer, and PR Reviewer roles,
 then stops for a human merge decision.
 
-Forge installation is global and language-neutral. Python is the only supported local activation
-profile today; Claude, Gemini, Rust, other languages, Linux, and Windows are planned—not
+Forge installation is global and language-neutral. Python and Rust are supported local activation
+profiles today; Claude, Gemini, other languages, Linux, and Windows are planned—not
 selectable.
 
 For a repository that deliberately opts in, `dev-loop` takes a task through branch creation,

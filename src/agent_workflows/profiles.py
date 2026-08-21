@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -16,10 +17,11 @@ from .library import LibraryError
 CONTEXT_PATH = Path(".172x/contexts.toml")
 SUPPORTED_HOST = "codex"
 SUPPORTED_LANGUAGE = "python"
+SUPPORTED_LANGUAGES = ("python", "rust")
 SUPPORTED_SCM = "git"
 SUPPORTED_PROVIDER = "github"
 PLANNED_HOSTS = ("claude", "gemini")
-PLANNED_LANGUAGES = ("c++", "java", "c#", "rust", "typescript")
+PLANNED_LANGUAGES = ("c++", "java", "c#", "typescript")
 PLANNED_PROVIDERS = ("gitlab", "bitbucket")
 
 
@@ -110,7 +112,21 @@ def active_gate_commands(target: Path, profile: ProjectProfile) -> tuple[tuple[s
 def gate_probe_commands(target: Path, profile: ProjectProfile) -> tuple[tuple[str, ...], ...]:
     """Return lightweight non-mutating availability probes for selected gate tools."""
     runner = language_runner(target, profile)
-    return tuple((*runner, tool, "--version") for tool in profile.gate_tools)
+    data = _language_data(profile.language)
+    commands: list[tuple[str, ...]] = []
+    for tool in profile.gate_tools:
+        value = data.get(tool)
+        if not isinstance(value, dict):
+            raise LibraryError(f"invalid bundled language profile tool: {tool}")
+        probe = value.get("probe", [tool, "--version"])
+        if (
+            not isinstance(probe, list)
+            or not probe
+            or not all(isinstance(part, str) for part in probe)
+        ):
+            raise LibraryError(f"invalid bundled language profile probe: {tool}")
+        commands.append((*runner, *probe))
+    return tuple(commands)
 
 
 def capability_message(kind: str, value: str) -> str:
@@ -123,7 +139,7 @@ def capability_message(kind: str, value: str) -> str:
     if value in planned:
         supported = {
             "host": SUPPORTED_HOST,
-            "language": SUPPORTED_LANGUAGE,
+            "language": ", ".join(SUPPORTED_LANGUAGES),
             "provider": SUPPORTED_PROVIDER,
         }
         return f"{kind} '{value}' is planned but not implemented; supported {kind}: {supported.get(kind, 'none')}"
@@ -134,7 +150,7 @@ def validate_profile(profile: ProjectProfile) -> None:
     """Reject unsupported activation choices and arbitrary gate commands."""
     if profile.host != SUPPORTED_HOST:
         raise LibraryError(capability_message("host", profile.host))
-    if profile.language != SUPPORTED_LANGUAGE:
+    if profile.language not in SUPPORTED_LANGUAGES:
         raise LibraryError(capability_message("language", profile.language))
     if profile.scm != SUPPORTED_SCM:
         raise LibraryError("unsupported SCM: git is the only supported SCM")
@@ -270,7 +286,10 @@ def _activation_root_and_relative(target: Path) -> tuple[Path, Path]:
         activation = root / CONTEXT_PATH
         if activation.exists():
             return root, project.relative_to(root)
-    raise LibraryError("172X activation is missing; run: agents activate python")
+    raise LibraryError(
+        "172X activation is missing; run 'agents activate rust' for Rust or "
+        "'agents activate python' for Python"
+    )
 
 
 def load_profile(target: Path) -> ProjectProfile:
@@ -280,7 +299,8 @@ def load_profile(target: Path) -> ProjectProfile:
         if context.path == relative:
             return context.profile
     raise LibraryError(
-        f"no 172X activation context matches {relative.as_posix() or '.'}; run: agents activate python"
+        f"no 172X activation context matches {relative.as_posix() or '.'}; run "
+        "'agents activate rust' for Rust or 'agents activate python' for Python"
     )
 
 
@@ -420,19 +440,30 @@ def prerequisite_rows(target: Path, profile: ProjectProfile) -> tuple[tuple[str,
     rows.append(("Git repository", git_repository, "working tree required for dev-loop"))
     gh_available = shutil.which("gh") is not None
     rows.append(("GitHub CLI", gh_available, "gh (needed only for dev-loop GitHub actions)"))
-    rows.append(
-        (
-            "GitHub reviewer identity",
-            False,
-            "configure an eligible independent reviewer when branch rules require it",
+    try:
+        from .providers.registry import source_control_provider
+
+        provider = source_control_provider(project)
+        reviewers = provider.reviews.configured_reviewers(project)
+        missing = [item.token_env for item in reviewers if not os.environ.get(item.token_env)]
+        reviewer_detail = (
+            f"configured: {', '.join(item.login for item in reviewers)}"
+            if not missing
+            else f"missing token environment variable(s): {', '.join(missing)}"
         )
-    )
+        reviewer_ok = not missing
+        reviewer_label = f"{provider.key.name.title()} reviewer identity"
+    except LibraryError as error:
+        reviewer_ok = False
+        reviewer_detail = str(error)
+        reviewer_label = "Source-control reviewer identity"
+    rows.append((reviewer_label, reviewer_ok, reviewer_detail))
     return tuple(rows)
 
 
 def prerequisites_ok(rows: tuple[tuple[str, bool, str], ...]) -> bool:
     """Keep advisory doctor rows separate from an explicit dev-loop decision."""
-    return all(ok for label, ok, _ in rows if label != "GitHub reviewer identity")
+    return all(ok for label, ok, _ in rows if not label.endswith("reviewer identity"))
 
 
 def capability_rows() -> tuple[tuple[str, str, str], ...]:
@@ -440,7 +471,7 @@ def capability_rows() -> tuple[tuple[str, str, str], ...]:
     return (
         ("host", "codex", "supported"),
         *(("host", value, "planned") for value in PLANNED_HOSTS),
-        ("language", "python", "supported"),
+        *(("language", value, "supported") for value in SUPPORTED_LANGUAGES),
         *(("language", value, "planned") for value in PLANNED_LANGUAGES),
         ("scm", "git", "supported"),
         ("provider", "github", "supported"),

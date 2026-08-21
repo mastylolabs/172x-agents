@@ -46,11 +46,12 @@ the rooted links already validated in canonical Markdown; there is no separate d
 
 The installer is idempotent, supports `--dry-run`, and refuses conflicting 172X-managed files
 unless `--force` is explicit. It does not write project `.agents/` directories, project
-`.codex/agents/` definitions, `172x.toml`, `.codex/config.toml`, credentials, or package-manager
-files. Repeating the same selection reports managed files as unchanged, and unrelated Codex-home or
-project files are preserved. Changing from a full or different focused selection removes an
-unselected canonical file only when it still matches the bundled managed bytes. A modified stale
-file is a conflict unless `--force` explicitly authorizes its removal; unknown files are preserved.
+`.codex/agents/` definitions, provider configuration, `.codex/config.toml`, credentials, or
+package-manager files. Repeating the same selection reports managed files as unchanged, and
+unrelated Codex-home or project files are preserved. Changing from a full or different focused
+selection removes an unselected canonical file only when it still matches the bundled managed
+bytes. A modified stale file is a conflict unless `--force` explicitly authorizes its removal;
+unknown files are preserved.
 
 To remove Forge's global skills without affecting other Codex skills:
 
@@ -86,7 +87,7 @@ Forge skills are language-neutral. If a project should have an expected gate con
 locally after global installation:
 
 ```bash
-agents activate python
+agents activate rust
 ```
 
 The command stores only the selected language and gate IDs in `.172x/contexts.toml`, which is
@@ -96,17 +97,38 @@ ignored by Git. It never installs Ruff, mypy, pytest, or any other external tool
 For a monorepo, activate only the package paths you choose:
 
 ```bash
-agents activate python --path services/api
+agents activate rust --path crates/api
 ```
+
+For `dev-loop` provider review, run `agents activate python`. The command creates the local
+`.git/172x/config.toml` and asks for the source-control selection, merge policy, and reviewer
+identity. The resulting non-secret configuration has this shape:
+
+```toml
+[provider]
+family = "source_control"
+name = "github"
+
+[merge]
+base_branch = "main"
+method = "squash"
+```
+
+The file lives inside Git metadata, is not visible to `git status`, and is never committed or pushed.
+For GitHub, each `token_env` points to a separately exported secret under `[github.review]`. This is
+one-time local setup for the guarded path. The standalone PR Reviewer does not need this mapping to
+produce a local recommendation, and a local recommendation is not a provider approval. In
+`dev-loop`, the provider adapter publishes the report and confirms approval for the exact reviewed
+head before the coordinator invokes the provider gate and guarded merge operation.
 
 ## Generated files versus source Markdown
 
 Canonical bundled content lives in `src/agent_workflows/library/` and is projected into the global
 Codex skills at installation time. Make durable Forge changes in that canonical Markdown library,
-then refresh with:
+then refresh the local CLI and global skills with:
 
 ```bash
-agents install codex --force
+agents refresh
 ```
 
 172X intentionally does not assume or write a global Codex custom-agent TOML location until that

@@ -29,7 +29,12 @@ Repository = "https://github.com/mastylolabs/172x-agents"
 Issues = "https://github.com/mastylolabs/172x-agents/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "radon>=6",
+]
 docs = ["mkdocs>=1.6,<2", "mkdocs-material>=9.5"]
 
 [project.scripts]

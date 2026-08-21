@@ -1,10 +1,11 @@
 # 172X Agents
 
-Markdown-first, composable AI-agent workflows for Codex.
+Markdown-first, composable AI-agent workflows with a typed provider ecosystem.
 
 172X Agents gives coding-agent hosts a focused library of specialists and workflow playbooks—from
 idea discovery and architecture through implementation, QA, review, and a human decision. Codex is
-the runtime and coordinator; 172X defines the roles, handoffs, evidence, and boundaries.
+the runtime and coordinator; 172X defines the roles, handoffs, evidence, boundaries, and explicit
+provider capabilities that workflows may use.
 
 ## Install
 
@@ -49,6 +50,20 @@ agents uninstall codex
 
 Use `--only CAPABILITY_ID` for one direct capability or `--dry-run` to inspect the removal plan.
 
+When developing 172X Agents itself, refresh the editable CLI and global Codex skills from the
+checkout with:
+
+```bash
+cd ~/dev/code/172x-agents
+agents refresh
+```
+
+`agents refresh` must run inside a local 172X Agents checkout (or receive `--source PATH`). It
+updates the user-level editable `agents` CLI and then force-refreshes the managed skills under
+`$CODEX_HOME/skills/172x-*`. It does not modify the checkout or install project development tools.
+Use `agents refresh --dry-run` to inspect the plan. A pre-existing CLI that does not yet include
+the command needs one bootstrap run of `uv tool install --editable . --force` from the checkout.
+
 Inside a project, optionally record the local quality contract that Forge should verify:
 
 ```bash
@@ -56,9 +71,11 @@ agents activate python
 agents doctor
 ```
 
-Activation asks for expected gate tools and stores them only in ignored `.172x/contexts.toml`.
-172X Agents never installs, upgrades, removes, or selects external development tools or package
-managers. In a monorepo, activate an explicit package path from the repository root:
+Activation asks for expected gate tools and, on a Git checkout, initializes the provider, merge, and
+reviewer configuration under `.git/172x/config.toml`. It stores the language/gate contract in
+ignored `.172x/contexts.toml`; neither location appears in `git status`. 172X Agents never
+installs, upgrades, removes, or selects external development tools or package managers. In a
+monorepo, activate an explicit package path from the repository root:
 
 ```bash
 agents activate python --path services/api
@@ -72,9 +89,14 @@ activation and diagnostic support is deliberately narrower:
 | Concern | Supported now | Planned, not selectable |
 | --- | --- | --- |
 | Host | Codex | Claude, Gemini |
-| Language | Python | Rust, C++, Java, C# |
-| Source control | Git + GitHub | GitLab, Bitbucket |
+| Language | Python, Rust | C++, Java, C# |
+| Source-control provider | Git + GitHub adapter | GitLab, Bitbucket adapters |
 | Platform | macOS | Linux, Windows |
+
+The provider layer is broader than source control. The registry is designed for source-control,
+model, notification, artifact, secret, and market-data families. GitHub is the first implemented
+source-control provider; future adapters add behavior behind the same capability contracts rather
+than changing the workflow agents.
 
 `agents capabilities` reports the same distinction. 172X never presents a planned integration as
 installed or working.
@@ -85,15 +107,17 @@ installed or working.
 Security Reviewer, and Product Specification Specialist. It composes them into four workflows:
 
 - `dev` — implementation, independent QA, review, and a human merge decision.
-- `dev-loop` — an experimental opt-in loop that can create a branch and pull request, then use the
-  guarded GitHub merge path only after independent approval and recorded checks pass.
+- `dev-loop` — an experimental opt-in loop that can create a branch and provider change request,
+  then use the guarded source-control merge path only after independent approval and recorded checks
+  pass. GitHub is the first implemented adapter.
 - `idea-to-build` — turns documented vision into reviewed design, architecture, implementation, and
   verification.
 - `idea-to-product` — adds discovery, research, feasibility, and product specification before the
   build path.
 
-The project intentionally does not include a workflow engine, database, scheduler, provider API
-client, hosted service, or bundled MCP server.
+The project intentionally does not include a workflow engine, database, scheduler, hosted service,
+or bundled MCP server. Provider integrations are narrow, explicit adapters; they do not create a
+background runtime or give agents unrestricted credentials.
 
 ## Use with Codex
 
@@ -106,9 +130,18 @@ $172x run dev
 $172x use idea-to-build
 ```
 
-`dev-loop` remains experimental. It has a concrete, fail-closed GitHub guard but requires further
-live validation before it can be treated as fully autonomous. Read the
+`dev-loop` remains experimental. It has a concrete, fail-closed source-control guard (currently
+GitHub) but requires further live validation before it can be treated as fully autonomous. Read the
 [experimental status](docs/DEV_LOOP_VALIDATION.md) before opting in.
+
+The standalone **172X · PR Reviewer** can inspect a change and return a local recommendation without
+GitHub credentials. If a project opts into the guarded GitHub path, `agents activate python` asks
+for the provider, merge policy, reviewer login, and token environment-name mapping, then stores
+that non-secret configuration under `.git/172x/config.toml`. The token itself remains in the
+environment. This one-time local setup is required for `dev-loop` and the explicit GitHub
+review/approval commands; the configured reviewer list is authoritative and every listed reviewer
+must approve the exact pull-request head. See the [CLI contract](docs/CLI.md#github-change-request-guard)
+for the commands and configuration shape.
 
 ## Documentation
 

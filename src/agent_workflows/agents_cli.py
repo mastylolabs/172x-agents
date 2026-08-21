@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import subprocess
+import sys
+import tomllib
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 
@@ -19,7 +23,6 @@ from .codex import (
     select_workflow,
     uninstall_codex,
 )
-from .github import merge_gate, merge_pull_request, resolve_review_thread, review_threads
 from .library import (
     LibraryError,
     domains,
@@ -39,6 +42,22 @@ from .profiles import (
     prerequisite_rows,
     prerequisites_ok,
     write_activation,
+)
+from .providers import (
+    MergeCapabilities,
+    MergeGate,
+    MergePolicy,
+    ReviewerIdentity,
+    ReviewerStatus,
+    ReviewSubmission,
+    SourceControlProvider,
+    default_registry,
+    source_control_provider,
+)
+from .providers.config import (
+    local_project_config_path,
+    shared_project_config_path,
+    write_local_project_config,
 )
 
 
@@ -98,6 +117,189 @@ def _target(target: Path | None) -> Path:
 def _operational_error(message: str) -> None:
     typer.echo(f"Error: {message}", err=True)
     raise typer.Exit(1)
+
+
+def _activation_prompt(label: str, default: str) -> str:
+    """Collect one provider setting interactively, using a safe default off a TTY."""
+    if not sys.stdin.isatty():
+        return default
+    return cast(str, typer.prompt(label, default=default)).strip()
+
+
+def _configure_local_provider(target: Path, *, dry_run: bool) -> tuple[str, Path | None]:
+    """Initialize repository-local provider settings without writing tracked files."""
+    local_path = local_project_config_path(target)
+    if local_path is None or local_path.is_file():
+        return ("UNCHANGED", local_path) if local_path is not None else ("SKIPPED", None)
+    legacy_path = shared_project_config_path(target)
+    if legacy_path is None:
+        provider_name = _activation_prompt("Source-control provider", "github").casefold()
+        base_branch = _activation_prompt("Merge base branch", "main")
+        merge_method = _activation_prompt("Merge method (merge/rebase/squash)", "squash")
+        reviewer_login = _activation_prompt("Independent reviewer login", "172x-reviewer-bot")
+        token_env = _activation_prompt("Reviewer token environment variable", "REVIEWER_GH_TOKEN")
+    else:
+        provider_name = "github"
+        base_branch = "main"
+        merge_method = "squash"
+        reviewer_login = "172x-reviewer-bot"
+        token_env = "REVIEWER_GH_TOKEN"
+    if provider_name != "github":
+        raise LibraryError(
+            f"provider '{provider_name}' is not implemented; supported provider: github"
+        )
+    return write_local_project_config(
+        target,
+        provider_name=provider_name,
+        base_branch=base_branch,
+        merge_method=merge_method,
+        reviewer_login=reviewer_login,
+        token_env=token_env,
+        dry_run=dry_run,
+    )
+
+
+def _github_provider(target: Path) -> SourceControlProvider:
+    """Resolve the configured source-control provider for a GitHub command group."""
+    provider = source_control_provider(target)
+    if provider.key.name != "github":
+        raise LibraryError(
+            f"this command requires source_control:github; configured provider is "
+            f"{provider.key.qualified_name}"
+        )
+    return provider
+
+
+def configured_reviewers(target: Path) -> tuple[ReviewerIdentity, ...]:
+    """Compatibility facade for the configured provider's reviewer operations."""
+    return _github_provider(target).reviews.configured_reviewers(target)
+
+
+def reviewer_status(target: Path, login: str) -> ReviewerStatus:
+    """Compatibility facade for the configured provider's reviewer status operation."""
+    return _github_provider(target).reviews.reviewer_status(target, login)
+
+
+def submit_review(
+    target: Path, pr_number: int, reviewer: str, head: str, report: Path
+) -> ReviewSubmission:
+    """Compatibility facade for provider-neutral review publication."""
+    return _github_provider(target).reviews.submit_review(target, pr_number, reviewer, head, report)
+
+
+def approve_pull_request(
+    target: Path, pr_number: int, reviewer: str, head: str, report: Path
+) -> ReviewSubmission:
+    """Compatibility facade for provider-neutral approval publication."""
+    return _github_provider(target).reviews.approve_review(
+        target, pr_number, reviewer, head, report
+    )
+
+
+def review_threads(target: Path, pr_number: int) -> list[dict[str, object]]:
+    """Compatibility facade for provider-neutral review-thread inspection."""
+    return _github_provider(target).change_requests.review_threads(target, pr_number)
+
+
+def resolve_review_thread(target: Path, pr_number: int, thread_id: str) -> None:
+    """Compatibility facade for provider-neutral review-thread resolution."""
+    _github_provider(target).change_requests.resolve_review_thread(target, pr_number, thread_id)
+
+
+def merge_policy(target: Path) -> MergePolicy:
+    """Compatibility facade for provider-neutral merge policy loading."""
+    return _github_provider(target).merges.merge_policy(target)
+
+
+def merge_capabilities(target: Path) -> MergeCapabilities:
+    """Compatibility facade for live provider merge capabilities."""
+    return _github_provider(target).merges.merge_capabilities(target)
+
+
+def merge_gate(target: Path, pr_number: int) -> MergeGate:
+    """Compatibility facade for the provider-neutral guarded merge gate."""
+    return _github_provider(target).merges.merge_gate(target, pr_number)
+
+
+def merge_pull_request(target: Path, pr_number: int) -> tuple[MergeGate, bool]:
+    """Compatibility facade for the provider-neutral guarded merge operation."""
+    return _github_provider(target).merges.merge_change_request(target, pr_number)
+
+
+def _refresh_source(start: Path) -> Path:
+    """Find the nearest 172X Agents checkout containing the canonical project metadata."""
+    candidate = start.expanduser().resolve()
+    if candidate.is_file():
+        candidate = candidate.parent
+    for directory in (candidate, *candidate.parents):
+        metadata_path = directory / "pyproject.toml"
+        if not metadata_path.is_file():
+            continue
+        try:
+            metadata = tomllib.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as error:
+            raise LibraryError(f"invalid project metadata: {metadata_path}") from error
+        project = metadata.get("project")
+        if isinstance(project, dict) and project.get("name") == "172x-agents":
+            return directory
+    raise LibraryError(
+        "agents refresh must run inside a local 172x-agents checkout; "
+        "use --source PATH to specify one"
+    )
+
+
+def _refresh_editable_cli(source: Path) -> None:
+    """Replace the user-level CLI tool with an editable install from one local checkout."""
+    uv = shutil.which("uv")
+    if uv is None:
+        raise LibraryError("agents refresh requires 'uv' on PATH")
+    completed = subprocess.run(
+        [uv, "tool", "install", "--editable", str(source), "--force"],
+        cwd=source,
+        shell=False,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "unknown uv error"
+        raise LibraryError(f"editable CLI refresh failed: {detail}")
+
+
+@app.command("refresh")
+def refresh(
+    source: Annotated[
+        Path | None,
+        typer.Option(
+            "--source",
+            help="Local 172x-agents checkout; defaults to the current directory or its parents.",
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show the refresh plan without changing the CLI or skills."),
+    ] = False,
+) -> None:
+    """Refresh the editable CLI and global Codex skills from local 172X Agents source."""
+    try:
+        checkout = _refresh_source(source or Path.cwd())
+        home = default_codex_home()
+        if dry_run:
+            typer.echo(f"Source: {checkout}")
+            typer.echo("Would refresh the editable 'agents' CLI with uv.")
+            typer.echo(f"Would refresh global Codex skills under: {home}")
+            return
+        _refresh_editable_cli(checkout)
+        plan = install_codex(home, force=True)
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(f"Source: {checkout}")
+    typer.echo("Editable 'agents' CLI: refreshed")
+    typer.echo(f"Codex home: {home}")
+    for action, path, _ in plan:
+        typer.echo(f"{action} {path.as_posix()}")
 
 
 def workflow_id_completions(incomplete: str) -> list[tuple[str, str]]:
@@ -245,7 +447,10 @@ def uninstall_codex_command(
 @app.command("activate")
 def activate(
     language: Annotated[
-        str, typer.Argument(help="Language profile for this project path; Python is supported.")
+        str,
+        typer.Argument(
+            help="Language profile for this project path; Python and Rust are supported."
+        ),
     ] = "python",
     path: Annotated[
         Path,
@@ -267,7 +472,7 @@ def activate(
         bool, typer.Option("--force", help="Replace an existing activation at this project path.")
     ] = False,
 ) -> None:
-    """Record a local quality contract without installing or changing external developer tools."""
+    """Record local gates and initialize repository-local 172X provider settings."""
     try:
         normalized_language = language.casefold()
         selected_gates = tuple(gate or ())
@@ -280,15 +485,22 @@ def activate(
                 item.strip().casefold() for item in prompt.split(",") if item.strip()
             )
         profile = default_profile(language=normalized_language, gate_tools=selected_gates)
+        config_action, config_path = _configure_local_provider(Path.cwd(), dry_run=dry_run)
         action, relative = write_activation(Path.cwd(), path, profile, dry_run=dry_run, force=force)
         exclude = ensure_activation_is_locally_ignored(Path.cwd(), dry_run=dry_run)
     except LibraryError as error:
         _operational_error(str(error))
     typer.echo(f"{action} {relative.as_posix()}")
+    if config_path is None:
+        typer.echo("SKIPPED local Git provider config: target is not a Git repository")
+    else:
+        typer.echo(f"{config_action} local Git provider config: {config_path}")
     if exclude is not None:
         exclude_action, exclude_path = exclude
         typer.echo(f"{exclude_action} local Git exclude: {exclude_path}")
-    typer.echo("No external tools, dependencies, or package-manager files were changed.")
+    typer.echo(
+        "No external tools, dependencies, package-manager files, or tracked files were changed."
+    )
 
 
 @github_app.command("review-threads")
@@ -328,6 +540,94 @@ def github_resolve_thread(
     typer.echo(f"Resolved GitHub review thread {thread_id} on PR #{pr_number}.")
 
 
+@github_app.command("reviewers")
+def github_reviewers(
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
+) -> None:
+    """List committed GitHub reviewers without printing token values."""
+    try:
+        reviewers = configured_reviewers(_target(target))
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo("Configured GitHub reviewers:")
+    for reviewer in reviewers:
+        state = "token set" if os.environ.get(reviewer.token_env) else "token missing"
+        typer.echo(f"- {reviewer.login} (token_env={reviewer.token_env}; {state})")
+
+
+@github_app.command("reviewer-status")
+def github_reviewer_status(
+    reviewer: Annotated[str, typer.Option("--reviewer", help="Configured reviewer login.")],
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
+) -> None:
+    """Verify a configured reviewer token's GitHub identity and repository access."""
+    try:
+        status = reviewer_status(_target(target), reviewer)
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(f"Reviewer: {status.reviewer.login}")
+    typer.echo(f"Authenticated as: {status.authenticated_login}")
+    typer.echo(f"Repository permission: {status.repository_permission}")
+
+
+@github_app.command("review")
+def github_review(
+    pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
+    reviewer: Annotated[str, typer.Option("--reviewer", help="Configured reviewer login.")],
+    head: Annotated[str, typer.Option("--head", help="Exact pull-request head commit OID.")],
+    report: Annotated[Path, typer.Option("--report", help="Markdown review report file.")],
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
+) -> None:
+    """Publish a non-approving review report through the configured reviewer identity."""
+    try:
+        submission = submit_review(_target(target), pr_number, reviewer, head, report)
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(
+        f"Submitted {submission.state} review for PR #{submission.pr_number} "
+        f"as {submission.reviewer} on {submission.head_oid}."
+    )
+
+
+@github_app.command("approve")
+def github_approve(
+    pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
+    reviewer: Annotated[str, typer.Option("--reviewer", help="Configured reviewer login.")],
+    head: Annotated[str, typer.Option("--head", help="Exact pull-request head commit OID.")],
+    report: Annotated[Path, typer.Option("--report", help="Markdown approval report file.")],
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
+) -> None:
+    """Submit and confirm an independent approval for the exact pull-request head."""
+    try:
+        submission = approve_pull_request(_target(target), pr_number, reviewer, head, report)
+    except LibraryError as error:
+        _operational_error(str(error))
+    typer.echo(
+        f"Submitted {submission.state} review for PR #{submission.pr_number} "
+        f"as {submission.reviewer} on {submission.head_oid}."
+    )
+
+
 @github_app.command("gate")
 def github_gate(
     pr_number: Annotated[int, typer.Argument(min=1, help="Open pull request number.")],
@@ -347,8 +647,47 @@ def github_gate(
     typer.echo(f"URL: {gate.url}")
     typer.echo(f"Base branch: {gate.policy.base_branch}")
     typer.echo(f"Merge method: {gate.policy.merge_method}")
+    if gate.provider_capabilities is not None:
+        methods = ", ".join(sorted(gate.provider_capabilities.merge_methods))
+        typer.echo(f"Provider allowed merge methods: {methods}")
     typer.echo(f"GitHub checks: {gate.reported_checks} reported, all passing")
     typer.echo(f"GitHub review threads: {gate.resolved_threads} resolved, 0 unresolved")
+    typer.echo(
+        "Configured reviewer approvals: "
+        + (", ".join(gate.approved_reviewers) if gate.approved_reviewers else "none")
+    )
+
+
+@github_app.command("merge-policy")
+def github_merge_policy(
+    target: Annotated[
+        Path | None,
+        typer.Option(
+            "--target", help="GitHub repository directory.", file_okay=False, dir_okay=True
+        ),
+    ] = None,
+) -> None:
+    """Show the configured merge policy and live GitHub compatibility evidence."""
+    project = _target(target)
+    try:
+        provider = _github_provider(project)
+        policy = provider.merges.merge_policy(project)
+        capabilities = provider.merges.merge_capabilities(project)
+    except LibraryError as error:
+        _operational_error(str(error))
+    compatible = policy.merge_method in capabilities.methods
+    typer.echo(f"Provider: source_control:{provider.key.name}")
+    typer.echo(f"Base branch: {policy.base_branch}")
+    typer.echo(f"Configured method: {policy.merge_method}")
+    typer.echo(
+        "Provider allowed methods: "
+        + (", ".join(sorted(capabilities.methods)) if capabilities.methods else "none")
+    )
+    typer.echo(f"Provider default method: {capabilities.default_method or 'unknown'}")
+    typer.echo("Provider default base branch: " + (capabilities.default_base_branch or "unknown"))
+    typer.echo(f"Compatibility: {'PASS' if compatible else 'BLOCKED'}")
+    if not compatible:
+        raise typer.Exit(1)
 
 
 @github_app.command("merge")
@@ -396,6 +735,15 @@ def list_domains() -> None:
     """List Markdown-defined agent domains and their specialist roles."""
     for domain, agents in domains().items():
         typer.echo(f"{domain}: {', '.join(agent.id for agent in agents)}")
+
+
+@app.command("providers")
+def providers() -> None:
+    """List registered provider families and implemented capabilities."""
+    typer.echo(f"{'PROVIDER':<28} CAPABILITIES")
+    for descriptor in default_registry().descriptors():
+        capabilities = ", ".join(sorted(capability.value for capability in descriptor.capabilities))
+        typer.echo(f"{descriptor.key.qualified_name:<28} {capabilities}")
 
 
 @app.command("capabilities")
@@ -503,7 +851,7 @@ def doctor(
         )
         rows = prerequisite_rows(project, profile)
         for label, ok, detail in rows:
-            state = "OK" if ok else "FAIL" if label != "GitHub reviewer identity" else "CHECK"
+            state = "OK" if ok else "FAIL" if not label.endswith("reviewer identity") else "CHECK"
             typer.echo(f"{label}: {state} ({detail})")
         prerequisite_ok = prerequisites_ok(rows)
     elif profile_error is not None:

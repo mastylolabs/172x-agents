@@ -4,8 +4,9 @@
 installed root CLI may load it as `172x agents`.
 
 The CLI installs and diagnoses integrations; Codex coordinates workflow steps. It does not run an
-agent runtime, call model APIs, manage credentials, install package dependencies, or provision
-external development tools.
+agent runtime, call model APIs, manage credentials, or provision external development tools. The
+explicit `agents refresh` command may update the isolated user-level 172X CLI tool from a validated
+local checkout.
 
 ## Install Forge once
 
@@ -34,6 +35,19 @@ unless `--force` explicitly authorizes removal.
 Global installation ships Codex skills. It does not write a guessed global custom-agent TOML
 location; support for that Codex projection must be verified before it is implemented.
 
+## Refresh a local development checkout
+
+```text
+agents refresh [--source PATH] [--dry-run]
+```
+
+Run this from a local `172x-agents` checkout after changing its source. The command validates the
+checkout, refreshes the user-level editable CLI with `uv tool install --editable ... --force`, and
+then refreshes all managed Codex skills under `$CODEX_HOME/skills/172x-*`. `--source` can identify a
+checkout when the current directory is elsewhere; `--dry-run` performs no writes. It never changes
+the project tree, dependencies, external development tools, or credentials. If the installed CLI
+predates `refresh`, bootstrap it once from the checkout with `uv tool install --editable . --force`.
+
 ## Uninstall Forge
 
 ```text
@@ -56,7 +70,7 @@ confirms that removing that exact namespaced directory is intended.
 ## Activate a local quality contract
 
 ```text
-agents activate [python] [--path RELATIVE_PATH] [--gate TOOL]... [--dry-run] [--force]
+agents activate [python|rust] [--path RELATIVE_PATH] [--gate TOOL]... [--dry-run] [--force]
 ```
 
 Activation records the developer's expected language and gate IDs in ignored local state:
@@ -76,8 +90,9 @@ repository-relative and lets a monorepo record a selected package:
 agents activate python --path services/api
 ```
 
-The only activatable language today is Python. Rust, TypeScript, and other languages are planned
-and are rejected rather than appearing to work.
+Python and Rust are activatable today. TypeScript and other languages are planned and are rejected
+rather than appearing to work. Rust defaults to `fmt`, `clippy`, and `test`, each mapped to a fixed
+`cargo` command.
 
 ## Diagnostics
 
@@ -86,7 +101,7 @@ agents doctor [--target PATH]
 ```
 
 `doctor` is read-only. It validates the bundled library, global Forge skills, Codex availability,
-local activation, selected gate availability, and relevant Git/GitHub prerequisites. It reports
+local activation, selected gate availability, and relevant Git/provider prerequisites. It reports
 missing gates with evidence and guidance; it does not install anything.
 
 ## Library and workflows
@@ -95,6 +110,7 @@ missing gates with evidence and guidance; it does not install anything.
 agents list
 agents domains
 agents capabilities
+agents providers
 agents workflows [--target PATH]
 agents show WORKFLOW_ID [--target PATH]
 agents --workflow WORKFLOW_ID [--target PATH] [--no-launch]
@@ -124,14 +140,73 @@ Use only options supported by your installed `codex --help`.
 ## GitHub change-request guard
 
 ```text
+agents github reviewers
+agents github reviewer-status --reviewer LOGIN
+agents github review PR_NUMBER --reviewer LOGIN --head HEAD_OID --report REPORT
+agents github approve PR_NUMBER --reviewer LOGIN --head HEAD_OID --report REPORT
 agents github review-threads PR_NUMBER
 agents github resolve-thread PR_NUMBER THREAD_ID
+agents github merge-policy
 agents github gate PR_NUMBER
 agents github merge PR_NUMBER
 ```
 
-The first command is read-only. The latter commands require an active local context and fail
-closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's
-`APPROVED` decision, has no failing or pending reported checks, and has no unresolved review
-threads. `merge` repeats that gate, pins the reviewed head commit, and uses only the configured
-normal merge method; it never sends `--admin` or `--auto` and never bypasses repository rules.
+Reviewer actions are authorized by local repository configuration in `.git/172x/config.toml`; token
+values never belong in that file:
+
+```toml
+[github.review]
+
+[[github.review.reviewers]]
+login = "172x-reviewer-bot"
+token_env = "REVIEWER_GH_TOKEN"
+```
+
+Run `agents activate python` to create this file interactively. Its defaults are provider `github`,
+base branch `main`, merge method `squash`, reviewer `172x-reviewer-bot`, and token environment
+variable `REVIEWER_GH_TOKEN`. This mapping is required only for the guarded GitHub actions below.
+The standalone PR Reviewer can
+inspect a change and return a local recommendation without it. A local `APPROVED` result is not a
+GitHub approval. For `dev-loop`, the mapping and exported credentials are required project setup;
+the loop validates them before provider review and fails closed when the reviewer identity cannot
+access the repository.
+
+The reviewer list is the source of truth; there is no separate reviewer-count setting. Its length
+determines the required reviewer count, and every configured reviewer must approve the exact current
+pull-request head before `gate` or `merge` can proceed. Each `token_env` names an environment
+variable containing that reviewer's token. `reviewer-status` verifies the token's GitHub login and
+repository permission without printing the token. `review` publishes a non-approving report review;
+`approve` submits and confirms an actual provider approval. Both commands re-check that the pull
+request is open, non-draft, authored by a different account, and still at `--head HEAD_OID`.
+
+`review-threads` is read-only. `resolve-thread`, `gate`, and `merge` require an active local context
+and fail closed unless the pull request is open, non-draft, clean, targets `main`, has GitHub's
+`APPROVED` decision, has no failing or pending reported checks, has no unresolved review threads,
+and has approvals from every configured reviewer on the checked head. `merge` repeats that gate,
+pins the reviewed head commit, and uses only the configured normal merge method; it never sends
+`--admin` or `--auto` and never bypasses repository rules.
+
+### Provider and merge policy
+
+`agents providers` lists registered provider families and implemented capabilities without network
+access. Source-control commands remain explicitly namespaced so authentication and provider
+semantics are visible. The workflow itself uses provider-neutral change-request, review, and merge
+contracts.
+
+Projects select a source-control provider and an explicit merge method in `.git/172x/config.toml`:
+
+```toml
+[provider]
+family = "source_control"
+name = "github"
+
+[merge]
+base_branch = "main"
+method = "rebase"
+```
+
+`agents github merge-policy` displays the configured method, live GitHub-allowed methods, the
+provider default, and a PASS or BLOCKED compatibility result. `gate` and `merge` repeat this
+compatibility check immediately before acting. Existing projects without local configuration retain
+the v0.1 GitHub and profile defaults for compatibility. A legacy root `172x.toml`, if present, is
+migrated by activation and remains a read-only fallback.

@@ -25,6 +25,18 @@ source .venv/bin/activate
 python -m pip install -e ".[dev,docs]"
 ```
 
+For ongoing development of 172X Agents itself, keep the user-level CLI and Codex skills aligned
+with the checkout:
+
+```bash
+cd ~/dev/code/172x-agents
+agents refresh
+```
+
+The command may also be run with `--source PATH` and previewed with `--dry-run`. If the currently
+installed CLI does not yet know `refresh`, run `uv tool install --editable . --force` once, then use
+`agents refresh` for subsequent source changes.
+
 ## Install Forge
 
 Install Forge once for your Codex user profile:
@@ -48,7 +60,7 @@ For a preview that writes nothing, add `--dry-run`.
 From a project root, optionally record the language and expected gate IDs that Forge should check:
 
 ```bash
-agents activate python
+agents activate rust
 ```
 
 Activation writes ignored `.172x/contexts.toml` only and adds `.172x/` to the repository's local
@@ -59,8 +71,12 @@ them. In a monorepo, select the package path explicitly:
 agents activate python --path services/api
 ```
 
-Python is the only activatable language today. Claude, Gemini, Rust, other languages, Linux, and
-Windows are planned; use `agents capabilities` to see the current boundary.
+Python and Rust are activatable today. Claude, Gemini, other languages, Linux, and Windows are
+planned; use `agents capabilities` to see the current boundary. Rust uses `cargo fmt`,
+`cargo clippy`, and `cargo test` as its default gates.
+
+Use `agents providers` to see the registered integration families and implemented capabilities.
+GitHub is the first source-control adapter; the workflow contracts are provider-neutral.
 
 Run a read-only readiness check before a workflow:
 
@@ -68,8 +84,36 @@ Run a read-only readiness check before a workflow:
 agents doctor
 ```
 
-It reports global Forge status, local activation, expected gate availability, Git/GitHub
+It reports global Forge status, local activation, expected gate availability, Git/provider
 prerequisites, and the independent-reviewer identity requirement. It never installs anything.
+
+Before using the guarded source-control review path, run `agents activate rust`. It asks for the
+provider, merge policy, independent reviewer login, and token environment-name mapping. The
+defaults are GitHub, `main`, `squash`, `172x-reviewer-bot`, and `REVIEWER_GH_TOKEN`; it then creates
+`.git/172x/config.toml` for the currently implemented GitHub adapter:
+
+```toml
+[provider]
+family = "source_control"
+name = "github"
+
+[merge]
+base_branch = "main"
+method = "squash"
+
+[github.review]
+
+[[github.review.reviewers]]
+login = "172x-reviewer-bot"
+token_env = "REVIEWER_GH_TOKEN"
+```
+
+The file is local Git metadata and does not appear in the working tree. The token environment
+variable is never written to the repository. The reviewer list is authoritative, so every configured
+identity must approve the exact current pull-request head. This is one-time setup for a project
+using `dev-loop` or the explicit GitHub review/approval commands; it is not required to run the
+standalone PR Reviewer locally. A standalone local recommendation must not be described as a
+provider approval.
 
 ## Pick a workflow
 
@@ -93,8 +137,8 @@ agents --workflow dev-loop
 
 `dev-loop` takes your task, makes a Brief Author handoff, normalizes a clean current non-main branch
 when the local activation permits it, creates a new task branch, runs the selected engineering gate, opens a
-GitHub pull request, gets independent QA/review, addresses Must Fix findings, and requests a merge
-only after the live GitHub gate passes. It does not ask for a pull-request number. It is
+provider change request, gets independent QA/review, addresses Must Fix findings, and requests a merge
+only after the live provider gate passes. It does not ask for a change-request number. It is
 experimental until repeated live runs demonstrate reliable stage handoffs; see
 [experimental status](DEV_LOOP_VALIDATION.md).
 

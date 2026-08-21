@@ -1,0 +1,45 @@
+"""Provider registry and capability contracts for 172X integrations."""
+
+from .contracts import (
+    CapabilityDiscovery,
+    ChangeRequestOperations,
+    MergeCapabilities,
+    MergeGate,
+    MergeOperations,
+    MergePolicy,
+    ProviderCapabilities,
+    ProviderCapability,
+    ProviderDescriptor,
+    ProviderFamily,
+    ProviderKey,
+    RepositoryOperations,
+    ReviewerIdentity,
+    ReviewerStatus,
+    ReviewOperations,
+    ReviewSubmission,
+    SourceControlProvider,
+)
+from .registry import ProviderRegistry, default_registry, source_control_provider
+
+__all__ = [
+    "CapabilityDiscovery",
+    "ChangeRequestOperations",
+    "MergeCapabilities",
+    "MergeGate",
+    "MergeOperations",
+    "MergePolicy",
+    "ProviderCapabilities",
+    "ProviderCapability",
+    "ProviderDescriptor",
+    "ProviderFamily",
+    "ProviderKey",
+    "ProviderRegistry",
+    "RepositoryOperations",
+    "ReviewOperations",
+    "ReviewSubmission",
+    "ReviewerIdentity",
+    "ReviewerStatus",
+    "SourceControlProvider",
+    "default_registry",
+    "source_control_provider",
+]

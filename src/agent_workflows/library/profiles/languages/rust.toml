@@ -1,0 +1,15 @@
+id = "rust"
+status = "supported"
+gate_tools = ["fmt", "clippy", "test"]
+
+[fmt]
+command = ["cargo", "fmt", "--all", "--", "--check"]
+probe = ["cargo", "fmt", "--version"]
+
+[clippy]
+command = ["cargo", "clippy", "--all-targets", "--all-features", "--", "-D", "warnings"]
+probe = ["cargo", "clippy", "--version"]
+
+[test]
+command = ["cargo", "test", "--all-targets", "--all-features"]
+probe = ["cargo", "test", "--version"]

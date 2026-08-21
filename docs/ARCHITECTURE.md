@@ -1,6 +1,9 @@
 # Architecture
 
-172X Agents is a Markdown-first library, not an agent runtime. Codex is the coordinator and executor; the Python package installs global canonical skills, records an optional local quality contract, selects a workflow, performs diagnostics, and provides narrow guarded GitHub helpers for `dev-loop`.
+172X Agents is a Markdown-first library with a typed provider capability layer, not an agent
+runtime. Codex is the coordinator and executor; the Python package installs global canonical
+skills, records an optional local quality contract, selects a workflow, performs diagnostics, and
+provides narrow guarded provider operations for `dev-loop`.
 
 ## Canonical content
 
@@ -12,7 +15,7 @@ src/agent_workflows/library/
 ├── assets/{product,design,platform,quality,security,workflows}/*.{md,mmd}
 ├── evaluations/v1/{README.md,rubric.md,cases/*.toml}
 ├── codex/SKILL.md
-└── profiles/languages/python.toml
+└── profiles/languages/{python,rust}.toml
 ```
 
 Bundled agent and workflow Markdown is authoritative. Forge installs the bundled coordinator and
@@ -43,6 +46,47 @@ and escalation behavior. Workflow transitions pass identified artifacts and comp
 without copying specialist procedures. Forge derives both `use when` and `do not use when` from the
 labeled canonical routing section; generated catalog JSON is not authored by hand.
 
+## Provider capability layer
+
+The registry separates provider discovery from provider behavior:
+
+```text
+ProviderRegistry
+└── source_control:github
+    ├── RepositoryOperations
+    ├── ChangeRequestOperations
+    ├── ReviewOperations
+    ├── MergeOperations
+    └── CapabilityDiscovery
+```
+
+Provider families are namespaced for future integrations such as models, notifications, artifacts,
+secrets, and market data. Capability contracts are typed protocols; a concrete adapter implements
+only the operations it actually supports. A large universal provider interface is deliberately not
+used. The GitHub adapter is the first implemented source-control provider and wraps the existing
+fail-closed `gh` operations. GitLab and Bitbucket can be added as adapters without changing the
+workflow roles or provider-neutral handoffs.
+
+The provider and merge policy are repository-local Git metadata initialized by `agents activate
+python`, so activation never makes the working tree dirty:
+
+```toml
+[provider]
+family = "source_control"
+name = "github"
+
+[merge]
+base_branch = "main"
+method = "squash"
+```
+
+The file lives at `.git/172x/config.toml` and is never committed or pushed. A legacy root
+`172x.toml` remains a read-only compatibility fallback and is copied into local Git metadata during
+activation.
+
+The merge gate compares this policy with live provider capabilities and blocks a method mismatch.
+Reviewer credentials remain provider-specific because login and token semantics differ by provider.
+
 ## Distribution boundary
 
 GitHub Releases are the source of record for standalone executables. Each release contains
@@ -72,15 +116,29 @@ runtime.
 
 ## Local activation and capabilities
 
+`agents refresh` is the local development synchronization path. It accepts only a checkout whose
+`pyproject.toml` project name is `172x-agents`, refreshes the user-level editable CLI through the
+existing `uv` executable, and then force-refreshes the managed Codex skills. It does not mutate the
+checkout, project dependencies, external development tools, or credentials.
+
 `.172x/contexts.toml` is ignored local activation state shared by doctor, gates, and `dev-loop`:
 
 ```text
 repository-relative path → language → expected gate IDs
 ```
 
-The initial activatable language is Python. Other hosts, languages, providers, Linux, and Windows are listed as **planned** by `agents capabilities`; the loader rejects them rather than creating empty adapters or configuration fields.
+`agents activate python` also initializes `.git/172x/config.toml` with prompted provider, merge, and
+reviewer defaults. Both locations are local to the checkout and do not appear in `git status`.
 
-Gates are selected tool IDs from the Python profile. Each maps to a safe argument-list command. Doctor may recognize an existing `uv` or Poetry runner to probe the selected tools, but 172X never installs tools, writes dependency files, or chooses a package manager. Repository-specific gate scripts and arbitrary command configuration are deliberately not part of this release.
+The activatable languages are Python and Rust. Other hosts, languages, concrete providers, Linux, and
+Windows are listed as **planned** by `agents capabilities`; the loader rejects them rather than
+creating empty adapters or pretending an integration works.
+
+Gates are selected tool IDs from the language profile. Each maps to a safe argument-list command.
+Python may recognize an existing `uv` or Poetry runner; Rust uses the existing `cargo` executable
+directly. 172X never installs tools, writes dependency files, or chooses a package manager.
+Repository-specific gate scripts and arbitrary command configuration are deliberately not part of
+this release.
 
 ## `dev-loop`
 
@@ -93,25 +151,36 @@ Task
   → new branch in the current checkout
   → Principal Engineer
   → selected engineering gate (repeat until pass)
-  → commit / push / GitHub pull request
+  → commit / push / provider change request
   → independent QA Engineer and review
   → address MF / answer Q / explain any declined NH
   → independent approval (at most two review returns)
-  → live GitHub gate
+  → live provider gate
   → normal merge to main
 ```
 
-The workflow calls the review unit a *change request* so later providers can translate it. The supported GitHub adapter operates on pull requests. It never receives a pull-request number from the user; it obtains that from its own GitHub action.
+The workflow calls the review unit a *change request* so providers can translate pull requests,
+merge requests, or equivalent resources. The GitHub adapter currently operates on pull requests and
+obtains their identifier from its own provider action rather than asking the user.
 
-The guard verifies a current GitHub approval, clean state, every reported GitHub check passing, resolved threads, target branch, and checked head commit immediately before merge. A repository with no reported GitHub checks is valid; its configured local engineering gate remains the workflow evidence. 172X never creates, changes, weakens, or bypasses repository branch rules. Codex never approves its own work. If branch rules require a second eligible GitHub identity, the repository must already provide it; `doctor` reports this as a required check.
+The guard verifies the selected provider's current approval, clean state, passing checks, resolved
+threads, target branch, compatible merge policy, and checked head commit immediately before merge.
+The provider-specific reviewer list remains the source of truth for independent identities; every
+configured reviewer must approve the exact head using the token named by its `token_env` variable.
+A repository with no reported provider checks is valid; its configured local engineering gate
+remains the workflow evidence. 172X never creates, changes, weakens, or bypasses provider branch
+rules. Codex never approves its own work.
 
 There is no hidden run database. Safe recovery comes from visible artifacts: the branch, change request, brief, gate output, and review comments. A new Codex session inspects those artifacts and resumes only from verified state.
 
 The current prompt-only coordinator does not yet guarantee exactly-once delegation or reliable
 bounded completion. Its dispatch and retry rules are fail-closed guidance, not deterministic
-runtime behavior. Provider and GitHub helpers remain separately guarded by the documented explicit
-opt-in and live-state checks.
+runtime behavior. Provider adapters remain separately guarded by the documented explicit opt-in and
+live-state checks.
 
 ## Boundaries
 
-172X does not add a workflow engine, database, scheduler, provider API client, generic host abstraction, plugin marketplace, hosted service, credentials, telemetry, or a background process. The local GitHub gate uses `gh` with argument lists and `shell=False`; it does not use administrator bypass or auto-merge.
+172X does not add a workflow engine, database, scheduler, generic host abstraction, plugin
+marketplace, hosted service, credentials, telemetry, or a background process. Provider adapters use
+explicit argument-list commands or provider clients only for documented capabilities; the GitHub
+adapter uses `gh` with `shell=False` and does not use administrator bypass or auto-merge.
